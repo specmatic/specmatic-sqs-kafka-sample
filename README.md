@@ -1,228 +1,127 @@
-# SQS to Kafka Bridge Application
+# SQS to Kafka Bridge
 
-This application bridges AWS SQS and Apache Kafka by polling messages from an SQS queue and forwarding them to a Kafka topic.
+A Kotlin application that consumes order messages from AWS SQS and publishes transformed messages to Apache Kafka.
 
-## Features
+## Overview
 
-- Polls messages from SQS queue using long polling
-- Processes and transforms messages
-- Forwards messages to Kafka topic
-- Automatic message deletion from SQS after successful processing
-- Graceful shutdown handling
-- Comprehensive logging
+This service bridges SQS and Kafka by:
+- Polling messages from an SQS queue (long polling)
+- Transforming order messages based on type (Standard → WIP, Priority → DELIVERED, Bulk → COMPLETED)
+- Publishing to Kafka topic
+- Deleting successfully processed messages from SQS
 
-## Architecture
+### Architecture
 
 ```
-┌─────────────┐         ┌──────────────────┐         ┌─────────────┐
-│   SQS Queue │ ───────>│  Bridge Service  │ ───────>│ Kafka Topic │
-│ (LocalStack)│         │  (Kotlin App)    │         │ (place-order-topic)│
-└─────────────┘         └──────────────────┘         └─────────────┘
-                                 │
-                                 │ Transform & Enrich
-                                 ▼
-                        {
-                           "originalMessage": {...},
-                           "processedAt": 1702345678901,
-                           "source": "sqs-to-kafka-bridge"
-                        }
+┌──────────────┐         ┌────────────────────┐         ┌──────────────┐
+│  SQS Queue   │ ──────> │  Kotlin Bridge App │ ──────> │ Kafka Topic  │
+│ (LocalStack) │  Poll   │   - Type Detection │ Publish │ place-order  │
+│              │         │   - Transform      │         │    -topic    │
+└──────────────┘         └────────────────────┘         └──────────────┘
 ```
+
+**Message Flow:**
+1. Standard Order → WIP status (with itemsCount, processingStartedAt)
+2. Priority Order → DELIVERED status (with itemsCount, deliveredAt, deliveryLocation)
+3. Bulk Order → COMPLETED status (with total itemsCount, completedAt, customerConfirmation)
+4. Invalid messages → Logged and NOT forwarded
 
 ## Prerequisites
 
 - Docker and Docker Compose
-- Java 17 or higher
+- Java 17+
 - Gradle (wrapper included)
+- AWS CLI (optional, for manual testing)
 
-## Quick Start
+## Running the Application
 
-### 1. Start Dependencies (LocalStack SQS + Kafka)
-
-```bash
-docker compose up -d
-```
-
-This will start:
-- **LocalStack** (SQS) on port 4566
-- **Kafka** on port 9092
-- **Zookeeper** on port 2181
-- **Kafka UI** on port 8080 (optional, for visualization)
-
-Wait a few seconds for services to be ready.
-
-### 2. Verify Services
-
-Check if all services are running:
-```bash
-docker compose ps
-```
-
-### 3. Build the Application
+### 1. Start Infrastructure
 
 ```bash
-./gradlew build
+./start-infrastructure.sh
 ```
 
-### 4. Run the Application
+This starts LocalStack (SQS), Kafka, Zookeeper, and Kafka UI.
+
+### 2. Run the application
 
 ```bash
 ./gradlew run
 ```
 
-Or with custom configuration:
-```bash
-export SQS_QUEUE_URL="http://localhost:4566/000000000000/place-order-queue"
-export KAFKA_TOPIC="place-order-topic"
-export SQS_ENDPOINT="http://localhost:4566"
-export KAFKA_BOOTSTRAP_SERVERS="localhost:9092"
-./gradlew run
+You should see:
+```
+============================================================
+SQS to Kafka Bridge Application
+============================================================
+Starting SQS to Kafka bridge...
 ```
 
 ## Testing the Application
 
-### Send a Test Message to SQS
+### Send Test Messages
 
-Using AWS CLI with LocalStack:
-
-```bash
-# Install AWS CLI if not already installed
-# For macOS: brew install awscli
-
-# Send a message
-aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs send-message \
-  --queue-url http://localhost:4566/000000000000/place-order-queue \
-  --message-body '{"orderId": "12345", "product": "Widget", "quantity": 10}'
-```
-
-Or using the provided test script:
+Use the provided script to send all order types:
 
 ```bash
 ./send-test-message.sh
 ```
 
-### Verify Message in Kafka
+This sends:
+- Standard order → transforms to WIP
+- Priority order → transforms to DELIVERED  
+- Bulk order → transforms to COMPLETED
+- Invalid message → rejected (not forwarded)
 
-You can use the Kafka UI at http://localhost:8080 or use command line:
+### View Results in Kafka UI
 
-```bash
-docker exec -it kafka kafka-console-consumer \
-  --bootstrap-server localhost:9093 \
-  --topic place-order-topic \
-  --from-beginning
-```
+1. Open http://localhost:8080
+2. Navigate to **Topics** → **place-order-topic** → **Messages**
+3. You'll see the transformed messages
 
-## Project Structure
+**Expected Kafka messages:**
 
-```
-.
-├── src/
-│   └── main/
-│       ├── kotlin/
-│       │   ├── Main.kt                 # Application entry point
-│       │   └── SqsToKafkaBridge.kt     # Core bridge logic
-│       └── resources/
-│           └── logback.xml             # Logging configuration
-├── docker-compose.yml                   # Docker services definition
-├── localstack-init/
-│   └── 01-init-sqs.sh                  # LocalStack initialization script
-├── build.gradle.kts                     # Gradle build configuration
-└── README.md                            # This file
-```
-
-## Configuration
-
-The application can be configured using environment variables:
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `SQS_QUEUE_URL` | Full URL of the SQS queue | `http://localhost:4566/000000000000/place-order-queue` |
-| `KAFKA_TOPIC` | Kafka topic name | `place-order-topic` |
-| `SQS_ENDPOINT` | LocalStack endpoint | `http://localhost:4566` |
-| `KAFKA_BOOTSTRAP_SERVERS` | Kafka broker address | `localhost:9092` |
-
-## Message Processing
-
-The application performs the following on each message:
-
-1. **Poll**: Long polls SQS queue (20 seconds wait time)
-2. **Process**: Transforms the message by adding metadata (timestamp, source)
-3. **Forward**: Sends processed message to Kafka topic
-4. **Delete**: Removes message from SQS queue after successful processing
-
-### Example Message Transformation
-
-**Input (from SQS):**
 ```json
-{"orderId": "12345", "product": "Widget"}
+// Standard Order (WIP)
+{"orderId": "ORD-90001", "itemsCount": 2, "status": "WIP", "processingStartedAt": "..."}
+
+// Priority Order (DELIVERED)
+{"orderId": "ORD-PRIORITY-90002", "itemsCount": 2, "status": "DELIVERED", "deliveredAt": "...", "deliveryLocation": "..."}
+
+// Bulk Order (COMPLETED)
+{"batchId": "BATCH-90003", "itemsCount": 3, "status": "COMPLETED", "completedAt": "...", "customerConfirmation": true}
 ```
 
-**Output (to Kafka):**
-```json
-{
-  "originalMessage": {"orderId": "12345", "product": "Widget"},
-  "processedAt": 1702345678901,
-  "source": "sqs-to-kafka-bridge"
-}
+**Application logs** will show:
+```
+Detected STANDARD order message
+Processing STANDARD order: ORD-90001 with 2 items
+Message sent to Kafka - Topic: place-order-topic, Partition: 0, Offset: 0
 ```
 
-## Stopping the Application
+### Stop Everything
 
-1. Stop the Kotlin application: `Ctrl+C`
-2. Stop Docker services:
-   ```bash
-   docker compose down
-   ```
-
-## Troubleshooting
-
-### Services not starting
 ```bash
-docker compose logs -f
+docker-compose down
 ```
 
-### SQS connection issues
-Ensure LocalStack is running and accessible:
+## Contract Testing with Specmatic
+
+### 1. Start Infrastructure
+
 ```bash
-curl http://localhost:4566/_localstack/health
+./start-infrastructure.sh
 ```
 
-### Kafka connection issues
-Check Kafka broker status:
+### 2. Run the application
+
 ```bash
-docker exec -it kafka kafka-broker-api-versions --bootstrap-server localhost:9093
+./gradlew run
 ```
 
-## Development
+### 3. Run contract tests using Sepcmatic
 
-### Running Tests
 ```bash
-./gradlew test
+specmatic-sqs-kafka test --kafka-server localhost:9092 --sqs-server http://localhost:4566/000000000000 --aws-region us-east-1 --aws-access-key-id test --aws-secret-access-key test 
 ```
-
-### Building JAR
-```bash
-./gradlew jar
-```
-
-### Clean Build
-```bash
-./gradlew clean build
-```
-
-## Production Considerations
-
-When deploying to production:
-
-1. Use actual AWS SQS instead of LocalStack
-2. Configure proper AWS credentials
-3. Set up appropriate IAM roles
-4. Use managed Kafka service (e.g., MSK, Confluent Cloud)
-5. Implement proper error handling and dead-letter queues
-6. Add metrics and monitoring
-7. Configure appropriate resource limits
-8. Implement message validation and schema registry
-
-## License
-
-This project is provided as-is for educational and development purposes.
 
