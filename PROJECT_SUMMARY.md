@@ -88,7 +88,7 @@ make help     # See all commands
 ```
 ┌─────────────┐         ┌──────────────────┐         ┌─────────────┐
 │   SQS Queue │ ───────>│  Bridge Service  │ ───────>│ Kafka Topic │
-│ (LocalStack)│         │  (Kotlin App)    │         │   (test-topic)│
+│ (LocalStack)│         │  (Kotlin App)    │         │   (place-order-topic)│
 └─────────────┘         └──────────────────┘         └─────────────┘
                               │
                               │ Transform & Enrich
@@ -106,9 +106,9 @@ All configuration via environment variables:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SQS_QUEUE_URL` | `http://localhost:4566/000000000000/test-queue` | SQS queue URL |
+| `SQS_QUEUE_URL` | `http://localhost:4566/000000000000/place-order-queue` | SQS queue URL |
 | `SQS_ENDPOINT` | `http://localhost:4566` | LocalStack endpoint |
-| `KAFKA_TOPIC` | `test-topic` | Target Kafka topic |
+| `KAFKA_TOPIC` | `place-order-topic` | Target Kafka topic |
 | `KAFKA_BOOTSTRAP_SERVERS` | `localhost:9092` | Kafka brokers |
 
 ## 📊 Monitoring & Debugging
@@ -124,7 +124,7 @@ The application outputs detailed logs showing:
 
 **Option 1: Kafka UI (Visual)**
 - Open http://localhost:8080
-- Navigate to Topics → test-topic
+- Navigate to Topics → place-order-topic
 
 **Option 2: Command Line**
 ```bash

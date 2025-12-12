@@ -1,7 +1,7 @@
 {
   "name": "Standard_Order_SQS_Kafka",
   "receive": {
-    "topic": "place-order-queue-1",
+    "topic": "place-order-queue",
     "payload": {
       "orderId": "ORD-90001",
       "customerId": "CUST-44556",

@@ -2,7 +2,7 @@
 
 # Script to consume and display messages from Kafka topic
 
-TOPIC="${1:-test-topic}"
+TOPIC="${1:-place-order-topic}"
 
 echo "======================================"
 echo "Kafka Message Consumer"

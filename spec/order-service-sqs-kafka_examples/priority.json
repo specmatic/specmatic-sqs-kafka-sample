@@ -1,7 +1,7 @@
 {
   "name": "Priority_Order_SQS_Kafka",
   "receive": {
-    "topic": "place-order-queue-1",
+    "topic": "place-order-queue",
     "payload": {
       "orderId": "ORD-PRIORITY-90002",
       "customerId": "CUST-77889",

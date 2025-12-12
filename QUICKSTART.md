@@ -82,9 +82,9 @@ You should see output like:
 SQS to Kafka Bridge Application
 ============================================================
 Configuration:
-  SQS Queue URL: http://localhost:4566/000000000000/test-queue
+  SQS Queue URL: http://localhost:4566/000000000000/place-order-queue
   SQS Endpoint: http://localhost:4566
-  Kafka Topic: test-topic
+  Kafka Topic: place-order-topic
   Kafka Bootstrap Servers: localhost:9092
 ============================================================
 Starting SQS to Kafka bridge...
@@ -102,7 +102,7 @@ In a new terminal window:
 **Or manually using AWS CLI:**
 ```bash
 aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs send-message \
-  --queue-url http://localhost:4566/000000000000/test-queue \
+  --queue-url http://localhost:4566/000000000000/place-order-queue \
   --message-body '{"orderId": "12345", "product": "Widget", "quantity": 10}'
 ```
 
@@ -112,14 +112,14 @@ aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs send-message \
 
 Open your browser and go to: http://localhost:8080
 
-Navigate to Topics → test-topic → Messages
+Navigate to Topics → place-order-topic → Messages
 
 **Option B: Using Kafka CLI tools**
 
 ```bash
 docker exec -it kafka kafka-console-consumer \
   --bootstrap-server localhost:9093 \
-  --topic test-topic \
+  --topic place-order-topic \
   --from-beginning
 ```
 
@@ -131,7 +131,7 @@ When you send a message to SQS, you should see:
    ```
    Received 1 message(s) from SQS
    Processing message: {"orderId": "12345", "product": "Widget", "quantity": 10}
-   Message sent to Kafka - Topic: test-topic, Partition: 0, Offset: 0
+   Message sent to Kafka - Topic: place-order-topic, Partition: 0, Offset: 0
    Successfully processed and forwarded message to Kafka
    ```
 

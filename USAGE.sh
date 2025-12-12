@@ -46,7 +46,7 @@ SQS to Kafka Bridge Application
 Starting SQS to Kafka bridge...
 Received 1 message(s) from SQS
 Processing message: {"orderId": "12345", "product": "Widget", "quantity": 10}
-Message sent to Kafka - Topic: test-topic, Partition: 0, Offset: 0
+Message sent to Kafka - Topic: place-order-topic, Partition: 0, Offset: 0
 Successfully processed and forwarded message to Kafka
 
 
@@ -77,7 +77,7 @@ make help       # Show all available commands
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 Kafka UI:           http://localhost:8080
-  → Navigate to: Topics → test-topic → Messages
+  → Navigate to: Topics → place-order-topic → Messages
   → See all messages in real-time with nice UI
 
 LocalStack Health:  http://localhost:4566/_localstack/health
@@ -92,14 +92,14 @@ LocalStack Health:  http://localhost:4566/_localstack/health
 Send a JSON message:
 ────────────────────────────────────────────────────────────────────────────────
 aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs send-message \
-  --queue-url http://localhost:4566/000000000000/test-queue \
+  --queue-url http://localhost:4566/000000000000/place-order-queue \
   --message-body '{"orderId": "99999", "product": "Custom Product", "amount": 100}'
 
 
 Send a text message:
 ────────────────────────────────────────────────────────────────────────────────
 aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs send-message \
-  --queue-url http://localhost:4566/000000000000/test-queue \
+  --queue-url http://localhost:4566/000000000000/place-order-queue \
   --message-body 'Hello from SQS!'
 
 

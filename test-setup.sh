@@ -82,9 +82,9 @@ fi
 echo ""
 echo "Test 7: Checking SQS queue..."
 if command -v aws &> /dev/null; then
-    QUEUE_CHECK=$(aws --endpoint-url=http://localhost:4566 sqs list-queues 2>/dev/null | grep -c "test-queue")
+    QUEUE_CHECK=$(aws --endpoint-url=http://localhost:4566 sqs list-queues 2>/dev/null | grep -c "place-order-queue")
     if [ $QUEUE_CHECK -gt 0 ]; then
-        print_status 0 "SQS queue 'test-queue' exists"
+        print_status 0 "SQS queue 'place-order-queue' exists"
     else
         print_warning "SQS queue not found. LocalStack may still be initializing."
     fi

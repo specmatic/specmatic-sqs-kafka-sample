@@ -3,7 +3,7 @@
 # Script to send test order messages matching the AsyncAPI spec
 
 ENDPOINT="http://localhost:4566"
-QUEUE_URL="http://localhost:4566/000000000000/test-queue"
+QUEUE_URL="http://localhost:4566/000000000000/place-order-queue"
 REGION="us-east-1"
 
 # Set fake credentials for LocalStack (to suppress warnings)

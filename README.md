@@ -16,7 +16,7 @@ This application bridges AWS SQS and Apache Kafka by polling messages from an SQ
 ```
 ┌─────────────┐         ┌──────────────────┐         ┌─────────────┐
 │   SQS Queue │ ───────>│  Bridge Service  │ ───────>│ Kafka Topic │
-│ (LocalStack)│         │  (Kotlin App)    │         │ (test-topic)│
+│ (LocalStack)│         │  (Kotlin App)    │         │ (place-order-topic)│
 └─────────────┘         └──────────────────┘         └─────────────┘
                                  │
                                  │ Transform & Enrich
@@ -71,8 +71,8 @@ docker compose ps
 
 Or with custom configuration:
 ```bash
-export SQS_QUEUE_URL="http://localhost:4566/000000000000/test-queue"
-export KAFKA_TOPIC="test-topic"
+export SQS_QUEUE_URL="http://localhost:4566/000000000000/place-order-queue"
+export KAFKA_TOPIC="place-order-topic"
 export SQS_ENDPOINT="http://localhost:4566"
 export KAFKA_BOOTSTRAP_SERVERS="localhost:9092"
 ./gradlew run
@@ -90,7 +90,7 @@ Using AWS CLI with LocalStack:
 
 # Send a message
 aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs send-message \
-  --queue-url http://localhost:4566/000000000000/test-queue \
+  --queue-url http://localhost:4566/000000000000/place-order-queue \
   --message-body '{"orderId": "12345", "product": "Widget", "quantity": 10}'
 ```
 
@@ -107,7 +107,7 @@ You can use the Kafka UI at http://localhost:8080 or use command line:
 ```bash
 docker exec -it kafka kafka-console-consumer \
   --bootstrap-server localhost:9093 \
-  --topic test-topic \
+  --topic place-order-topic \
   --from-beginning
 ```
 
@@ -135,8 +135,8 @@ The application can be configured using environment variables:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `SQS_QUEUE_URL` | Full URL of the SQS queue | `http://localhost:4566/000000000000/test-queue` |
-| `KAFKA_TOPIC` | Kafka topic name | `test-topic` |
+| `SQS_QUEUE_URL` | Full URL of the SQS queue | `http://localhost:4566/000000000000/place-order-queue` |
+| `KAFKA_TOPIC` | Kafka topic name | `place-order-topic` |
 | `SQS_ENDPOINT` | LocalStack endpoint | `http://localhost:4566` |
 | `KAFKA_BOOTSTRAP_SERVERS` | Kafka broker address | `localhost:9092` |
 

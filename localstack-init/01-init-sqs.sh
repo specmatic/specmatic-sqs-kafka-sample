@@ -6,10 +6,10 @@
 echo "Initializing LocalStack resources..."
 
 # Create SQS queue
-awslocal sqs create-queue --queue-name test-queue
+awslocal sqs create-queue --queue-name place-order-queue
 
 # Get queue URL
-QUEUE_URL=$(awslocal sqs get-queue-url --queue-name test-queue --query 'QueueUrl' --output text)
+QUEUE_URL=$(awslocal sqs get-queue-url --queue-name place-order-queue --query 'QueueUrl' --output text)
 
 echo "SQS Queue created: $QUEUE_URL"
 echo "LocalStack initialization complete!"

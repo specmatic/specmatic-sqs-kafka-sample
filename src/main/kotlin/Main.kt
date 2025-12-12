@@ -9,8 +9,8 @@ fun main() {
 
     // Configuration - can be moved to config file or environment variables
     val sqsQueueUrl = System.getenv("SQS_QUEUE_URL")
-        ?: "http://localhost:4566/000000000000/test-queue"
-    val kafkaTopic = System.getenv("KAFKA_TOPIC") ?: "test-topic"
+        ?: "http://localhost:4566/000000000000/place-order-queue"
+    val kafkaTopic = System.getenv("KAFKA_TOPIC") ?: "place-order-topic"
     val sqsEndpoint = System.getenv("SQS_ENDPOINT") ?: "http://localhost:4566"
     val kafkaBootstrapServers = System.getenv("KAFKA_BOOTSTRAP_SERVERS") ?: "localhost:9092"
 
