@@ -1,0 +1,4 @@
+version: 2
+contracts:
+  - provides:
+      - spec/order-service-sqs-kafka.yaml
