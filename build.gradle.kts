@@ -49,3 +49,12 @@ tasks.test {
         showStandardStreams = true
     }
 }
+
+// Create a fat JAR with all dependencies
+tasks.jar {
+    manifest {
+        attributes["Main-Class"] = "io.specmatic.async.MainKt"
+    }
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
+}

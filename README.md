@@ -32,6 +32,86 @@ This service bridges SQS and Kafka by:
 - Java 17+
 - Gradle (wrapper included)
 - AWS CLI (optional, for manual testing)
+ 
+## Contract Testing with Specmatic Programmatically using TestContainers
+
+### 1. Run the Contract Test
+
+```bash
+./gradlew clean test
+```
+
+This approach uses JUnit tests with TestContainers to programmatically start infrastructure, run the application, and execute Specmatic tests.
+
+### 2. View Test Reports
+
+After running tests, reports are saved in:
+```
+build/reports/specmatic/
+├── html/index.html        # HTML report
+└── ctrf/ctrf-report.json  # CTRF JSON report
+```
+
+## Contract Testing with Specmatic using Script
+
+### Run the Tests
+
+## Simply execute the provided script:
+
+```bash
+./run-contract-tests.sh
+```
+
+## Manual Cleanup (if needed)
+
+If the script is interrupted and containers are still running:
+
+```bash
+docker-compose -f docker-compose-test.yml --profile test down -v
+```
+
+### CI/CD Integration
+
+The script returns appropriate exit codes:
+- `0` - All tests passed
+- `1` - Tests failed or error occurred
+
+Example CI/CD usage:
+
+```yaml
+# .github/workflows/test.yml
+- name: Run Contract Tests
+  run: ./run-contract-tests.sh
+```
+
+### View Test Reports
+
+After running tests, reports are saved in:
+```
+build/reports/specmatic/
+├── html/index.html        # HTML report
+└── ctrf/ctrf-report.json  # CTRF JSON report
+```
+
+## Contract Testing with Specmatic Manually
+
+### 1. Start Infrastructure
+
+```bash
+./start-infrastructure.sh
+```
+
+### 2. Run the application
+
+```bash
+./gradlew run
+```
+
+### 3. Run contract tests using Specmatic
+
+```bash
+docker run --rm --network host -v "$PWD/specmatic.yaml:/usr/src/app/specmatic.yaml" -v "$PWD/spec:/usr/src/app/spec" specmatic/specmatic-sqs-kafka test --kafka-server localhost:9092 --sqs-server http://localhost:4566/000000000000 --aws-region us-east-1 --aws-access-key-id test --aws-secret-access-key test 
+```
 
 ## Running the Application
 
@@ -57,7 +137,7 @@ SQS to Kafka Bridge Application
 Starting SQS to Kafka bridge...
 ```
 
-## Testing the Application
+## Testing the Application Manually
 
 ### Send Test Messages
 
@@ -69,7 +149,7 @@ Use the provided script to send all order types:
 
 This sends:
 - Standard order → transforms to WIP
-- Priority order → transforms to DELIVERED  
+- Priority order → transforms to DELIVERED
 - Bulk order → transforms to COMPLETED
 - Invalid message → rejected (not forwarded)
 
@@ -103,25 +183,5 @@ Message sent to Kafka - Topic: place-order-topic, Partition: 0, Offset: 0
 
 ```bash
 docker-compose down
-```
-
-## Contract Testing with Specmatic
-
-### 1. Start Infrastructure
-
-```bash
-./start-infrastructure.sh
-```
-
-### 2. Run the application
-
-```bash
-./gradlew run
-```
-
-### 3. Run contract tests using Specmatic 
-
-```bash
-docker run --rm --network host -v "$PWD/specmatic.yaml:/usr/src/app/specmatic.yaml" -v "$PWD/spec:/usr/src/app/spec" specmatic/specmatic-sqs-kafka test --kafka-server localhost:9092 --sqs-server http://localhost:4566/000000000000 --aws-region us-east-1 --aws-access-key-id test --aws-secret-access-key test 
 ```
 

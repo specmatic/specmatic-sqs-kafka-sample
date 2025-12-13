@@ -1,0 +1,40 @@
+# Build outputs
+build/
+.gradle/
+*.jar
+*.class
+
+# IDE files
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+README.md
+*.md
+
+# Scripts
+*.sh
+
+# Test files
+volume/
+localstack-init/
+
+# Gradle wrapper jar (will be copied separately)
+!gradle/wrapper/gradle-wrapper.jar
+

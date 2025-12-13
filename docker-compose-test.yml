@@ -1,0 +1,130 @@
+services:
+  # LocalStack for AWS services (SQS)
+  localstack:
+    image: localstack/localstack:latest
+    container_name: sqs-kafka-localstack
+    ports:
+      - "4566:4566"            # LocalStack Gateway
+      - "4510-4559:4510-4559"  # External services port range
+    environment:
+      - SERVICES=sqs
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - "${LOCALSTACK_VOLUME_DIR:-./volume}:/var/lib/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./localstack-init:/etc/localstack/init/ready.d"  # Init scripts
+    networks:
+      - sqs-kafka-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Zookeeper - required for Kafka
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.3
+    container_name: sqs-kafka-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - sqs-kafka-network
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "2181"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Kafka broker
+  kafka:
+    image: confluentinc/cp-kafka:7.5.3
+    container_name: sqs-kafka-kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "9093:9093"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT_INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - sqs-kafka-network
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9093"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+
+  # Kafka UI (optional - for easier visualization)
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: sqs-kafka-kafka-ui
+    depends_on:
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9093
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+    networks:
+      - sqs-kafka-network
+
+  # SQS to Kafka Bridge Application
+  sqs-kafka-bridge:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sqs-kafka-bridge-app
+    depends_on:
+      localstack:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    environment:
+      - SQS_QUEUE_URL=http://localstack:4566/000000000000/place-order-queue
+      - SQS_ENDPOINT=http://localstack:4566
+      - KAFKA_TOPIC=place-order-topic
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9093
+    networks:
+      - sqs-kafka-network
+    restart: unless-stopped
+
+  # Specmatic Contract Tests
+  specmatic-tests:
+    image: specmatic/specmatic-sqs-kafka:latest
+    container_name: sqs-kafka-specmatic-tests
+    depends_on:
+      sqs-kafka-bridge:
+        condition: service_started
+    network_mode: "host"
+    volumes:
+      - ./specmatic.yaml:/usr/src/app/specmatic.yaml
+      - ./spec:/usr/src/app/spec
+      - ./build/reports/specmatic:/usr/src/app/build/reports/specmatic
+    command: >
+      test 
+      --kafka-server localhost:9092
+      --sqs-server http://localhost:4566/000000000000
+      --aws-region us-east-1
+      --aws-access-key-id test
+      --aws-secret-access-key test
+    profiles:
+      - test
+
+networks:
+  sqs-kafka-network:
+    driver: bridge
+
