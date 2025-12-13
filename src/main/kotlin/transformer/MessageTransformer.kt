@@ -11,140 +11,106 @@ class MessageTransformer {
     private val objectMapper: ObjectMapper = jacksonObjectMapper()
 
     /**
-     * Determines the type of incoming order message
+     * Transforms the incoming SQS message to the appropriate Kafka message format
+     * Uses Jackson's polymorphic deserialization based on the orderType discriminator
      */
-    fun determineMessageType(messageBody: String): OrderMessageType {
+    fun transformMessage(messageBody: String): String? {
         return try {
-            val jsonNode = objectMapper.readTree(messageBody)
+            // Jackson automatically deserializes to the correct subtype based on orderType
+            val orderMessage = objectMapper.readValue(messageBody, OrderMessage::class.java)
 
-            when {
-                // Bulk order: has batchId and orders array
-                jsonNode.has("batchId") && jsonNode.has("orders") && jsonNode.get("orders").isArray -> {
-                    logger.info("Detected BULK order message")
-                    OrderMessageType.BULK
-                }
-                // Priority order: has priorityLevel and expectedDeliveryDate
-                jsonNode.has("priorityLevel") && jsonNode.has("expectedDeliveryDate") -> {
-                    logger.info("Detected PRIORITY order message")
-                    OrderMessageType.PRIORITY
-                }
-                // Standard order: has orderId, customerId, items
-                jsonNode.has("orderId") && jsonNode.has("customerId") && jsonNode.has("items") -> {
-                    logger.info("Detected STANDARD order message")
-                    OrderMessageType.STANDARD
-                }
-                else -> {
-                    logger.warn("Unknown message format: {}", messageBody)
-                    OrderMessageType.UNKNOWN
-                }
+            val transformedMessage = when (orderMessage) {
+                is StandardOrderMessage -> transformStandardOrder(orderMessage)
+                is PriorityOrderMessage -> transformPriorityOrder(orderMessage)
+                is BulkOrderMessage -> transformBulkOrder(orderMessage)
             }
+
+            objectMapper.writeValueAsString(transformedMessage)
         } catch (e: Exception) {
-            logger.error("Error parsing message to determine type: ${e.message}", e)
-            OrderMessageType.UNKNOWN
+            logger.error("Error transforming message: ${e.message}. Message will not be forwarded to Kafka.", e)
+            logger.debug("Message body: {}", messageBody)
+            null
         }
     }
 
     /**
-     * Transforms the incoming SQS message to the appropriate Kafka message format
+     * Determines the message type from a deserialized order message
+     * Useful for extracting message keys
      */
-    fun transformMessage(messageBody: String): String? {
-        val messageType = determineMessageType(messageBody)
-
-        return when (messageType) {
-            OrderMessageType.STANDARD -> transformStandardOrder(messageBody)
-            OrderMessageType.PRIORITY -> transformPriorityOrder(messageBody)
-            OrderMessageType.BULK -> transformBulkOrder(messageBody)
-            OrderMessageType.UNKNOWN -> {
-                logger.error("Message does not match any expected schema. Message will not be forwarded to Kafka: {}", messageBody)
-                null
-            }
+    fun getMessageType(orderMessage: OrderMessage): OrderMessageType {
+        return when (orderMessage) {
+            is StandardOrderMessage -> OrderMessageType.STANDARD
+            is PriorityOrderMessage -> OrderMessageType.PRIORITY
+            is BulkOrderMessage -> OrderMessageType.BULK
         }
     }
 
     /**
      * Transform Standard Order → WIP status
      */
-    private fun transformStandardOrder(messageBody: String): String? {
-        return try {
-            val standardOrder = objectMapper.readValue(messageBody, StandardOrderMessage::class.java)
+    private fun transformStandardOrder(standardOrder: StandardOrderMessage): WipOrderMessage {
+        logger.info("Processing STANDARD order: ${standardOrder.orderId} with ${standardOrder.items.size} items")
 
-            val wipOrder = WipOrderMessage(
-                orderId = standardOrder.orderId,
-                itemsCount = standardOrder.items.size,
-                status = "WIP",
-                processingStartedAt = Instant.now().toString()
-            )
-
-            logger.info("Processing STANDARD order: ${standardOrder.orderId} with ${standardOrder.items.size} items")
-
-            objectMapper.writeValueAsString(wipOrder)
-        } catch (e: Exception) {
-            logger.error("Error transforming standard order: ${e.message}. Message will not be forwarded.", e)
-            null
-        }
+        return WipOrderMessage(
+            orderId = standardOrder.orderId,
+            itemsCount = standardOrder.items.size,
+            status = "WIP",
+            processingStartedAt = Instant.now().toString()
+        )
     }
 
     /**
      * Transform Priority Order → DELIVERED status
      */
-    private fun transformPriorityOrder(messageBody: String): String? {
-        return try {
-            val priorityOrder = objectMapper.readValue(messageBody, PriorityOrderMessage::class.java)
+    private fun transformPriorityOrder(priorityOrder: PriorityOrderMessage): DeliveredOrderMessage {
+        logger.info("Processing PRIORITY order: ${priorityOrder.orderId} with priority level: ${priorityOrder.priorityLevel}")
 
-            val deliveredOrder = DeliveredOrderMessage(
-                orderId = priorityOrder.orderId,
-                itemsCount = priorityOrder.items.size,
-                status = "DELIVERED",
-                deliveredAt = Instant.now().toString(),
-                deliveryLocation = "Delivery location from logistics system" // Placeholder
-            )
-
-            logger.info("Processing PRIORITY order: ${priorityOrder.orderId} with priority level: ${priorityOrder.priorityLevel}")
-
-            objectMapper.writeValueAsString(deliveredOrder)
-        } catch (e: Exception) {
-            logger.error("Error transforming priority order: ${e.message}. Message will not be forwarded.", e)
-            null
-        }
+        return DeliveredOrderMessage(
+            orderId = priorityOrder.orderId,
+            itemsCount = priorityOrder.items.size,
+            status = "DELIVERED",
+            deliveredAt = Instant.now().toString(),
+            deliveryLocation = "Delivery location from logistics system" // Placeholder
+        )
     }
 
     /**
      * Transform Bulk Order → COMPLETED status
      */
-    private fun transformBulkOrder(messageBody: String): String? {
-        return try {
-            val bulkOrder = objectMapper.readValue(messageBody, BulkOrderMessage::class.java)
+    private fun transformBulkOrder(bulkOrder: BulkOrderMessage): CompletedOrderMessage {
+        // Calculate total items across all orders in the batch
+        val totalItemsCount = bulkOrder.orders.sumOf { order -> order.items.size }
 
-            // Calculate total items across all orders in the batch
-            val totalItemsCount = bulkOrder.orders.sumOf { order -> order.items.size }
+        logger.info("Processing BULK order batch: ${bulkOrder.batchId} - Total orders: ${bulkOrder.orders.size} - Total items: $totalItemsCount")
 
-            val completedOrder = CompletedOrderMessage(
-                batchId = bulkOrder.batchId,
-                itemsCount = totalItemsCount,
-                status = "COMPLETED",
-                completedAt = Instant.now().toString(),
-                customerConfirmation = true
-            )
+        return CompletedOrderMessage(
+            batchId = bulkOrder.batchId,
+            itemsCount = totalItemsCount,
+            status = "COMPLETED",
+            completedAt = Instant.now().toString(),
+            customerConfirmation = true
+        )
+    }
 
-            logger.info("Processing BULK order batch: ${bulkOrder.batchId} - Total orders: ${bulkOrder.orders.size} - Total items: $totalItemsCount")
-
-            objectMapper.writeValueAsString(completedOrder)
-        } catch (e: Exception) {
-            logger.error("Error transforming bulk order: ${e.message}. Message will not be forwarded.", e)
-            null
+    /**
+     * Extract message key for Kafka partitioning from the order message
+     */
+    fun extractMessageKey(orderMessage: OrderMessage): String {
+        return when (orderMessage) {
+            is BulkOrderMessage -> orderMessage.batchId
+            is StandardOrderMessage -> orderMessage.orderId
+            is PriorityOrderMessage -> orderMessage.orderId
         }
     }
 
     /**
-     * Extract message key for Kafka partitioning
+     * Extract message key for Kafka partitioning from raw JSON
+     * This is a convenience method for cases where we need to extract the key before deserialization
      */
-    fun extractMessageKey(messageBody: String, messageType: OrderMessageType): String {
+    fun extractMessageKeyFromJson(messageBody: String): String {
         return try {
-            val jsonNode = objectMapper.readTree(messageBody)
-            when (messageType) {
-                OrderMessageType.BULK -> jsonNode.get("batchId")?.asText() ?: "unknown"
-                else -> jsonNode.get("orderId")?.asText() ?: "unknown"
-            }
+            val orderMessage = objectMapper.readValue(messageBody, OrderMessage::class.java)
+            extractMessageKey(orderMessage)
         } catch (e: Exception) {
             logger.warn("Could not extract message key: ${e.message}")
             "unknown"

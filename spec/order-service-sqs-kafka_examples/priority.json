@@ -3,6 +3,7 @@
   "receive": {
     "topic": "place-order-queue",
     "payload": {
+      "orderType": "PRIORITY",
       "orderId": "ORD-PRIORITY-90002",
       "customerId": "CUST-77889",
       "items": [

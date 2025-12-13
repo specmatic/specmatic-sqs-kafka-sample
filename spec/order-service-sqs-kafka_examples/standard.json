@@ -3,6 +3,7 @@
   "receive": {
     "topic": "place-order-queue",
     "payload": {
+      "orderType": "STANDARD",
       "orderId": "ORD-90001",
       "customerId": "CUST-44556",
       "items": [

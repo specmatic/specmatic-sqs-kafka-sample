@@ -88,11 +88,10 @@ class SqsToKafkaBridge(
             try {
                 val messageBody = message.body ?: ""
                 logger.info("Received message from SQS: $messageBody")
-                val messageType = messageTransformer.determineMessageType(messageBody)
                 val transformedMessage = messageTransformer.transformMessage(messageBody)
 
                 if (transformedMessage != null) {
-                    val messageKey = messageTransformer.extractMessageKey(messageBody, messageType)
+                    val messageKey = messageTransformer.extractMessageKeyFromJson(messageBody)
                     sendToKafka(transformedMessage, messageKey)
                     logger.info("Successfully processed and forwarded message to Kafka")
                 } else {

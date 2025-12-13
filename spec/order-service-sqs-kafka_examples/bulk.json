@@ -3,6 +3,7 @@
   "receive": {
     "topic": "place-order-queue",
     "payload": {
+      "orderType": "BULK",
       "batchId": "BATCH-90003",
       "customerId": "CUST-99001",
       "orders": [
