@@ -119,9 +119,9 @@ docker-compose down
 ./gradlew run
 ```
 
-### 3. Run contract tests using Sepcmatic
+### 3. Run contract tests using Specmatic 
 
 ```bash
-specmatic-sqs-kafka test --kafka-server localhost:9092 --sqs-server http://localhost:4566/000000000000 --aws-region us-east-1 --aws-access-key-id test --aws-secret-access-key test 
+docker run --rm --network host -v "$PWD/specmatic.yaml:/usr/src/app/specmatic.yaml" -v "$PWD/spec:/usr/src/app/spec" specmatic/specmatic-sqs-kafka test --kafka-server localhost:9092 --sqs-server http://localhost:4566/000000000000 --aws-region us-east-1 --aws-access-key-id test --aws-secret-access-key test 
 ```
 
