@@ -109,7 +109,7 @@ class ContractTest {
     }
 
     @Test
-    fun `should run Specmatic contract tests successfully`() {
+    fun `run contract test`() {
         // Use localhost URLs with standard ports from docker-compose
         val kafkaBootstrapServers = "localhost:9092"
         val sqsEndpoint = "http://localhost:4566/000000000000"
