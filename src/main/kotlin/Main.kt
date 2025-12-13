@@ -8,11 +8,19 @@ fun main() {
     val logger = LoggerFactory.getLogger("Main")
 
     // Configuration - can be moved to config file or environment variables
-    val sqsQueueUrl = System.getenv("SQS_QUEUE_URL")
+    // Check system properties first (for tests), then environment variables
+    val sqsQueueUrl = System.getProperty("SQS_QUEUE_URL")
+        ?: System.getenv("SQS_QUEUE_URL")
         ?: "http://localhost:4566/000000000000/place-order-queue"
-    val kafkaTopic = System.getenv("KAFKA_TOPIC") ?: "place-order-topic"
-    val sqsEndpoint = System.getenv("SQS_ENDPOINT") ?: "http://localhost:4566"
-    val kafkaBootstrapServers = System.getenv("KAFKA_BOOTSTRAP_SERVERS") ?: "localhost:9092"
+    val kafkaTopic = System.getProperty("KAFKA_TOPIC")
+        ?: System.getenv("KAFKA_TOPIC")
+        ?: "place-order-topic"
+    val sqsEndpoint = System.getProperty("SQS_ENDPOINT")
+        ?: System.getenv("SQS_ENDPOINT")
+        ?: "http://localhost:4566"
+    val kafkaBootstrapServers = System.getProperty("KAFKA_BOOTSTRAP_SERVERS")
+        ?: System.getenv("KAFKA_BOOTSTRAP_SERVERS")
+        ?: "localhost:9092"
 
     logger.info("=".repeat(60))
     logger.info("SQS to Kafka Bridge Application")

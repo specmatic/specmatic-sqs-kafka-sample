@@ -25,6 +25,8 @@ class SqsToKafkaBridge(
 ) {
     private val logger = LoggerFactory.getLogger(SqsToKafkaBridge::class.java)
     private val messageTransformer = MessageTransformer()
+    @Volatile
+    private var running = true
 
     private val kafkaProducer: KafkaProducer<String, String> by lazy {
         val props = Properties().apply {
@@ -54,7 +56,7 @@ class SqsToKafkaBridge(
         }
 
         sqsClient.use { client ->
-            while (isActive) {
+            while (isActive && running) {
                 try {
                     pollAndProcessMessages(client)
                 } catch (e: Exception) {
@@ -128,6 +130,7 @@ class SqsToKafkaBridge(
 
     fun close() {
         logger.info("Shutting down SQS to Kafka bridge...")
+        running = false
         kafkaProducer.close()
     }
 }
