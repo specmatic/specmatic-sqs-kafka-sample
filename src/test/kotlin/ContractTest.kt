@@ -142,7 +142,7 @@ class ContractTest {
             .withNetworkMode("host")
             .withStartupTimeout(Duration.ofMinutes(5))
             .withLogConsumer { print(it.utf8String) }
-            .waitingFor(Wait.forLogMessage(".*Total Tests.*", 1))
+            .waitingFor(Wait.forLogMessage(".*The ctrf report is saved at.*", 1))
 
         try {
             // Start the Specmatic container
