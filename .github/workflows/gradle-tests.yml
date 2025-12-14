@@ -9,6 +9,8 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    env:
+      CTRF_REPORT_PATH: 'build/reports/specmatic/sqs-kafka/test/ctrf/*.json'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -35,7 +37,7 @@ jobs:
         if: always() # Run even if tests fail
         with:
           name: ctrf-report
-          path: build/reports/specmatic/ctrf/*.json
+          path: ${{ env.CTRF_REPORT_PATH }}
           retention-days: 5
 
       # Display CTRF test results
@@ -43,4 +45,4 @@ jobs:
         uses: ctrf-io/github-test-reporter@v1
         if: always() # Run even if tests fail
         with:
-          report-path: './build/reports/specmatic/ctrf/*.json'
+          report-path: ${{ env.CTRF_REPORT_PATH }}
