@@ -31,8 +31,8 @@
     "payload": {
       "orderId": "ORD-90001",
       "itemsCount": "$match(exact: 2)",
-      "status": "WIP",
-      "processingStartedAt": "$match(dataType: datetime)"
+      "status": "$match(exact: WIP)",
+      "processingStartedAt": "(datetime)"
     }
   }
 }

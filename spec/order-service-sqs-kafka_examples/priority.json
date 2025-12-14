@@ -33,10 +33,10 @@
     "topic": "place-order-topic",
     "payload": {
       "orderId": "ORD-PRIORITY-90002",
-      "itemsCount": 2,
-      "status": "DELIVERED",
-      "deliveredAt": "2025-12-09T18:45:00Z",
-      "deliveryLocation": "789 Pine Street, Chicago, IL 60601"
+      "itemsCount": "$match(exact: 2)",
+      "status": "$match(exact: DELIVERED)",
+      "deliveredAt": "(datetime)",
+      "deliveryLocation": "(string)"
     }
   }
 }
