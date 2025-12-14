@@ -12,13 +12,7 @@ This service bridges SQS and Kafka by:
 
 ### Architecture
 
-```
-┌──────────────┐         ┌────────────────────┐         ┌──────────────┐
-│  SQS Queue   │ ──────> │  Kotlin Bridge App │ ──────> │ Kafka Topic  │
-│ (LocalStack) │  Poll   │   - Type Detection │ Publish │ place-order  │
-│              │         │   - Transform      │         │    -topic    │
-└──────────────┘         └────────────────────┘         └──────────────┘
-```
+![SQS to Kafka Architecture](assets/SpecmaticSQS.png)
 
 **Message Flow:**
 1. Standard Order → WIP status (with itemsCount, processingStartedAt)
