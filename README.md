@@ -78,8 +78,8 @@ The script returns appropriate exit codes:
 
 Example CI/CD usage:
 
+Add this in your `.github/workflows/test.yml`
 ```yaml
-# .github/workflows/test.yml
 - name: Run Contract Tests
   run: ./run-contract-tests.sh
 ```
@@ -161,14 +161,16 @@ This sends:
 
 **Expected Kafka messages:**
 
+Standard Order (WIP)
 ```json
-// Standard Order (WIP)
 {"orderId": "ORD-90001", "itemsCount": 2, "status": "WIP", "processingStartedAt": "..."}
-
-// Priority Order (DELIVERED)
+```
+Priority Order (DELIVERED)
+```json
 {"orderId": "ORD-PRIORITY-90002", "itemsCount": 2, "status": "DELIVERED", "deliveredAt": "...", "deliveryLocation": "..."}
-
-// Bulk Order (COMPLETED)
+```
+Bulk Order (COMPLETED)
+```json
 {"batchId": "BATCH-90003", "itemsCount": 3, "status": "COMPLETED", "completedAt": "...", "customerConfirmation": true}
 ```
 
@@ -184,4 +186,3 @@ Message sent to Kafka - Topic: place-order-topic, Partition: 0, Offset: 0
 ```bash
 docker-compose down
 ```
-
