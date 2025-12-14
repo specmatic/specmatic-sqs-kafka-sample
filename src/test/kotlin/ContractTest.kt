@@ -35,7 +35,6 @@ class ContractTest {
         fun setup() {
             // Start infrastructure using docker-compose
             infrastructure = ComposeContainer(DOCKER_COMPOSE_FILE)
-                .withLocalCompose(true)
                 .withExposedService(LOCALSTACK_SERVICE, 4566, Wait.forListeningPort())
                 .withExposedService(KAFKA_SERVICE, 9092, Wait.forListeningPort())
                 .waitingFor(KAFKA_SERVICE, Wait.forLogMessage(".*started.*", 1)
