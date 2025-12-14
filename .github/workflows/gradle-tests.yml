@@ -24,3 +24,23 @@ jobs:
         run: ./gradlew build --no-daemon
         env:
           CI: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Upload CTRF Report
+        uses: actions/upload-artifact@v4
+        if: always() # Run even if tests fail
+        with:
+          name: ctrf-report
+          path: build/reports/specmatic/ctrf/*.json
+          retention-days: 5
+
+      # Display CTRF test results
+      - name: Publish Test Results
+        uses: ctrf-io/github-test-reporter@v1
+        if: always() # Run even if tests fail
+        with:
+          report-path: './build/reports/specmatic/ctrf/*.json'
