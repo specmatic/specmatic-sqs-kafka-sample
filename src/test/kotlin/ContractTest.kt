@@ -11,6 +11,7 @@ import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.utility.DockerImageName
 import org.testcontainers.containers.BindMode
+import org.testcontainers.images.PullPolicy
 import java.io.File
 import java.time.Duration
 
@@ -109,19 +110,11 @@ class ContractTest {
 
     @Test
     fun `run contract test`() {
-        // Use localhost URLs with standard ports from docker-compose
-        val kafkaBootstrapServers = "localhost:9092"
-        val sqsEndpoint = "http://localhost:4566/000000000000"
-
         // Setup Specmatic container with host network mode
-        val specmaticContainer = GenericContainer(DockerImageName.parse("specmatic/specmatic-sqs-kafka:latest"))
+        val specmaticContainer = GenericContainer(DockerImageName.parse("specmatic/specmatic-async-core"))
+            .withImagePullPolicy(PullPolicy.alwaysPull())
             .withCommand(
-                "test",
-                "--kafka-server=$kafkaBootstrapServers",
-                "--sqs-server=$sqsEndpoint",
-                "--aws-region=us-east-1",
-                "--aws-access-key-id=test",
-                "--aws-secret-access-key=test"
+                "test"
             )
             .withFileSystemBind(
                 "./specmatic.yaml",
@@ -141,7 +134,7 @@ class ContractTest {
             .withNetworkMode("host")
             .withStartupTimeout(Duration.ofMinutes(5))
             .withLogConsumer { print(it.utf8String) }
-            .waitingFor(Wait.forLogMessage(".*The ctrf report is saved at.*", 1))
+            .waitingFor(Wait.forLogMessage(".*Failed:.*", 1))
 
         try {
             // Start the Specmatic container
@@ -156,7 +149,7 @@ class ContractTest {
             println(logs)
             println("=".repeat(60))
 
-            assertThat(logs).contains("Failed Tests: 0")
+            assertThat(logs).contains("Failed: 0")
         } finally {
             specmaticContainer.stop()
         }

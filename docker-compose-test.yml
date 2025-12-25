@@ -104,7 +104,7 @@ services:
 
   # Specmatic Contract Tests
   specmatic-tests:
-    image: specmatic/specmatic-sqs-kafka:latest
+    image: specmatic/specmatic-async-core:latest
     container_name: sqs-kafka-specmatic-tests
     depends_on:
       sqs-kafka-bridge:
@@ -116,11 +116,6 @@ services:
       - ./build/reports/specmatic:/usr/src/app/build/reports/specmatic
     command: >
       test 
-      --kafka-server localhost:9092
-      --sqs-server http://localhost:4566/000000000000
-      --aws-region us-east-1
-      --aws-access-key-id test
-      --aws-secret-access-key test
     profiles:
       - test
 
