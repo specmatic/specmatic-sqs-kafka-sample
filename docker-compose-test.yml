@@ -104,7 +104,7 @@ services:
 
   # Specmatic Contract Tests
   specmatic-tests:
-    image: specmatic/specmatic-async-core:latest
+    image: specmatic/specmatic-async:latest
     container_name: sqs-kafka-specmatic-tests
     depends_on:
       sqs-kafka-bridge:

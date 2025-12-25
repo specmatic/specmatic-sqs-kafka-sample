@@ -104,7 +104,7 @@ build/reports/specmatic/
 ### 3. Run contract tests using Specmatic
 
 ```bash
-docker run --rm --network host -v "$PWD/specmatic.yaml:/usr/src/app/specmatic.yaml" -v "$PWD/spec:/usr/src/app/spec" -v "$PWD/build/reports/specmatic:/usr/src/app/build/reports/specmatic" specmatic/specmatic-async-core test
+docker run --rm --network host -v "$PWD/specmatic.yaml:/usr/src/app/specmatic.yaml" -v "$PWD/spec:/usr/src/app/spec" -v "$PWD/build/reports/specmatic:/usr/src/app/build/reports/specmatic" specmatic/specmatic-async test
 ```
 
 ## Running the Application
