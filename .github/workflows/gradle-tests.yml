@@ -10,7 +10,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     env:
-      CTRF_REPORT_PATH: 'build/reports/specmatic/sqs-kafka/test/ctrf/*.json'
+      CTRF_REPORT_PATH: './build/reports/specmatic/sqs-kafka/test/ctrf/*.json'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
