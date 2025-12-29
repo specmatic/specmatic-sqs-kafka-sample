@@ -17,7 +17,7 @@ COPY src ./src
 RUN gradle build -x test --no-daemon
 
 # Runtime stage
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:17.0.17_10-jre
 
 WORKDIR /app
 
