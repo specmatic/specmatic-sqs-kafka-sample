@@ -13,7 +13,7 @@ repositories {
 dependencies {
     implementation("aws.sdk.kotlin:sqs:1.0.0")
     implementation("aws.smithy.kotlin:http-client-engine-crt:1.0.0")
-    implementation("org.apache.kafka:kafka-clients:3.6.1")
+    implementation("org.apache.kafka:kafka-clients:3.9.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     implementation("org.slf4j:slf4j-api:2.0.9")
     implementation("ch.qos.logback:logback-classic:1.4.14")
