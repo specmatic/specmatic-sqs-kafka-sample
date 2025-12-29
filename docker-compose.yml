@@ -30,7 +30,7 @@ services:
 
   # Kafka broker
   kafka:
-    image: confluentinc/cp-kafka:7.5.3
+    image: confluentinc/cp-kafka:7.9.5
     depends_on:
       - zookeeper
     ports:
