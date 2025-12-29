@@ -25,7 +25,7 @@ services:
 
   # Zookeeper - required for Kafka
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.5.3
+    image: confluentinc/cp-zookeeper:7.9.5
     container_name: sqs-kafka-zookeeper
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
