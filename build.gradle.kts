@@ -21,10 +21,10 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.16.1")
 
     testImplementation(kotlin("test"))
-    testImplementation("org.testcontainers:testcontainers:2.0.2")
-    testImplementation("org.testcontainers:junit-jupiter:1.21.3")
-    testImplementation("org.testcontainers:kafka:1.21.3")
-    testImplementation("org.testcontainers:localstack:1.21.3")
+    testImplementation("org.testcontainers:testcontainers:2.0.3")
+    testImplementation("org.testcontainers:junit-jupiter:1.21.4")
+    testImplementation("org.testcontainers:kafka:1.21.4")
+    testImplementation("org.testcontainers:localstack:1.21.4")
     testImplementation("org.assertj:assertj-core:3.27.6")
 }
 
