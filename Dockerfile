@@ -1,5 +1,5 @@
 # Multi-stage build for efficient image size
-FROM gradle:8.14-jdk17 AS build
+FROM gradle:9.2-jdk17 AS build
 
 WORKDIR /app
 
