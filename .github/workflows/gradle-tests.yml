@@ -22,6 +22,12 @@ jobs:
           java-version: '17'
           cache: gradle
 
+      - name: Save Specmatic license
+        if: github.ref == 'refs/heads/main'
+        run: |
+          mkdir -p ~/.specmatic
+          echo "${{ secrets.SPECMATIC_LICENSE_KEY }}" > ~/.specmatic/specmatic-license.txt
+
       - name: Build project with Gradle
         run: ./gradlew build --no-daemon
         env:
