@@ -27,6 +27,22 @@ jobs:
         env:
           CI: true
 
+      - name: Run Specmatic Insights Build Reporter
+        if: github.ref == 'refs/heads/main'
+        run: |
+          docker run \
+          -v ${{ github.workspace }}:/workspace \
+          -v ${{ github.workspace }}/specmatic.yaml:/workspace/specmatic.yaml \
+          -v ~/.specmatic:/root/.specmatic \
+          -w /workspace \
+          specmatic/specmatic \
+          send-report \
+          --metadata build_url=${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} \
+          --branch-name ${{ github.ref_name }} \
+          --repo-name ${{ github.event.repository.name }} \
+          --repo-id ${{ github.repository_id }} \
+          --repo-url ${{ github.event.repository.html_url }}
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
