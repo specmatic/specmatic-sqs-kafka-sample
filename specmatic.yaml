@@ -1,10 +1,8 @@
 version: 2
 contracts:
-  - git:
-      url: https://github.com/specmatic/specmatic-order-contracts
-    provides:
+  - provides:
       - specs:
-          - io/specmatic/examples/store/asyncapi/3_0_0/sqs_kafka/order-service-sqs-kafka.yaml
+          - spec/order-service-sqs-kafka.yaml
         specType: asyncapi
         config:
           servers:

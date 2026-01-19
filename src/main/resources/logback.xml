@@ -1,15 +1,25 @@
 <configuration>
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
-            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            <pattern>[%thread] %-5level - %msg%n</pattern>
         </encoder>
     </appender>
 
+    <!-- Application logs -->
     <logger name="io.specmatic.async" level="INFO"/>
-    <logger name="org.apache.kafka" level="WARN"/>
-    <logger name="aws.sdk.kotlin" level="WARN"/>
 
-    <root level="INFO">
+    <!-- Suppress noisy Kafka logs -->
+    <logger name="org.apache.kafka" level="ERROR"/>
+    <logger name="org.apache.kafka.clients.NetworkClient" level="ERROR"/>
+    <logger name="org.apache.kafka.clients.consumer" level="ERROR"/>
+    <logger name="org.apache.kafka.clients.producer" level="ERROR"/>
+    <logger name="org.apache.kafka.common.metrics" level="ERROR"/>
+
+    <!-- Suppress AWS SDK logs -->
+    <logger name="aws.sdk.kotlin" level="ERROR"/>
+    <logger name="aws.smithy.kotlin" level="ERROR"/>
+
+    <root level="WARN">
         <appender-ref ref="STDOUT"/>
     </root>
 </configuration>

@@ -42,6 +42,22 @@ channels:
         $ref: '#/components/messages/CompletedOrderMessage'
     description: Kafka topic where the WIP orders will be sent
 
+  retryTopic:
+    address: place-order-retry-topic
+    servers:
+      - $ref: '#/servers/kafkaServer'
+    messages:
+      retryMessage:
+        $ref: '#/components/messages/RetryMessage'
+    description: Kafka topic where failed messages are sent for retry processing
+
+  dlqTopic:
+    address: place-order-dlq-topic
+    servers:
+      - $ref: '#/servers/kafkaServer'
+    messages:
+      placeOrderDlqMessage:
+        $ref: '#/components/messages/PlaceOrderDlqMessage'
 
 operations:
   sendOrder:
@@ -60,6 +76,24 @@ operations:
         - $ref: '#/channels/wipOrder/messages/wipOrderMessage'
         - $ref: '#/channels/wipOrder/messages/deliveredOrderMessage'
         - $ref: '#/channels/wipOrder/messages/completedOrderMessage'
+
+    x-specmatic-retry:
+      channel:
+        $ref: '#/channels/retryTopic'
+      messages:
+        - $ref: '#/channels/retryTopic/messages/retryMessage'
+      maxAttempts: 3
+      strategy:
+        type: "exponential"
+        initialDelaySeconds: 1
+        multiplier: 2
+
+    x-specmatic-dlq:
+      channel:
+        $ref: '#/channels/dlqTopic'
+      messages:
+        - $ref: '#/channels/dlqTopic/messages/placeOrderDlqMessage'
+      waitTimeInSeconds: 30
 
 components:
   messages:
@@ -460,3 +494,79 @@ components:
           - itemsCount
           - status
           - completedAt
+
+    RetryMessage:
+      name: RetryMessage
+      title: Retry Message Event
+      summary: Message sent to retry topic when processing fails
+      contentType: application/json
+      payload:
+        type: object
+        properties:
+          originalMessage:
+            type: string
+            description: The original message body that failed processing
+            examples:
+              - '{"orderType":"STANDARD","orderId":"ORD-RETRY-90001",...}'
+          messageKey:
+            type: string
+            description: The message key for partitioning
+            examples:
+              - ORD-RETRY-90001
+          retryCount:
+            type: integer
+            description: Current retry attempt number
+            examples:
+              - 1
+          firstAttemptTimestamp:
+            type: string
+            format: date-time
+            description: Timestamp of the first processing attempt
+            examples:
+              - '2026-01-19T10:00:00Z'
+          lastAttemptTimestamp:
+            type: string
+            format: date-time
+            description: Timestamp of the last processing attempt
+            examples:
+              - '2026-01-19T10:00:05Z'
+          errorMessage:
+            type: string
+            description: Error message from the failed attempt
+            examples:
+              - 'Simulated transformation failure for order: ORD-RETRY-90001'
+          errorStackTrace:
+            type: string
+            description: Stack trace of the error
+            examples:
+              - 'io.specmatic.async.transformer.MessageTransformationException: ...'
+        required:
+          - originalMessage
+          - messageKey
+          - retryCount
+          - firstAttemptTimestamp
+          - lastAttemptTimestamp
+
+    PlaceOrderDlqMessage:
+      payload:
+        properties:
+          originalMessage:
+            type: string
+          messageKey:
+            type: string
+          totalRetries:
+            type: number
+          firstAttemptTimestamp:
+            type: string
+            format: date-time
+          failedTimestamp:
+            type: string
+            format: date-time
+          finalErrorMessage:
+            type: string
+          finalErrorStackTrace:
+            type: string
+        required:
+          - originalMessage
+          - messageKey
+          - totalRetries

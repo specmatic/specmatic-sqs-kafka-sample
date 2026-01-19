@@ -1,6 +1,6 @@
 # SQS to Kafka Bridge
 
-A Kotlin application that consumes order messages from AWS SQS and publishes transformed messages to Apache Kafka.
+A Kotlin application that consumes order messages from AWS SQS and publishes transformed messages to Apache Kafka, with robust retry and Dead Letter Queue (DLQ) handling for failed messages.
 
 ## Overview
 
@@ -8,6 +8,8 @@ This service bridges SQS and Kafka by:
 - Polling messages from an SQS queue (long polling)
 - Transforming order messages based on type (Standard → WIP, Priority → DELIVERED, Bulk → COMPLETED)
 - Publishing to Kafka topic
+- Automatically retrying failed messages with exponential backoff
+- Sending permanently failed messages to DLQ for investigation
 - Deleting successfully processed messages from SQS
 
 ### Architecture
@@ -18,7 +20,27 @@ This service bridges SQS and Kafka by:
 1. Standard Order → WIP status (with itemsCount, processingStartedAt)
 2. Priority Order → DELIVERED status (with itemsCount, deliveredAt, deliveryLocation)
 3. Bulk Order → COMPLETED status (with total itemsCount, completedAt, customerConfirmation)
-4. Invalid messages → Logged and NOT forwarded
+4. Failed messages → Retry topic (up to 3 attempts with exponential backoff)
+5. Permanently failed messages → DLQ topic
+
+### Retry & DLQ Flow
+
+**Success Path**: SQS → Transform → Kafka Main Topic
+
+**Failure Path**: 
+```
+SQS → Transform (fails) → Retry Topic 
+  → Retry Consumer (attempt 1, wait 1s) → Transform (fails) → Retry Topic
+  → Retry Consumer (attempt 2, wait 2s) → Transform (fails) → Retry Topic
+  → Retry Consumer (attempt 3, wait 4s) → Transform (fails) → DLQ Topic
+```
+
+**Key Points:**
+- Retry Consumer processes messages directly from the Retry Topic
+- On each retry attempt, it tries to transform and send to the Main Kafka Topic
+- If transformation still fails, the message goes back to the Retry Topic with incremented retry count
+- After max retries (3), the message is sent to the DLQ Topic
+- No circular loop between SQS and Kafka - retries happen entirely within Kafka
 
 ## Prerequisites
 
@@ -41,7 +63,7 @@ This approach uses JUnit tests with TestContainers to programmatically start inf
 
 After running tests, reports are saved in:
 ```
-build/reports/specmatic/
+build/reports/specmatic/async/test/
 ├── html/index.html        # HTML report
 └── ctrf/ctrf-report.json  # CTRF JSON report
 ```
@@ -180,3 +202,48 @@ Message sent to Kafka - Topic: place-order-topic, Partition: 0, Offset: 0
 ```bash
 docker-compose down
 ```
+
+## Testing Retry and DLQ Flow
+
+### Send Test Messages for Retry/DLQ
+
+Use the provided script to test retry and DLQ scenarios:
+
+```bash
+./test-retry-dlq.sh
+```
+
+This sends:
+- 1 successful message (normal flow)
+- 1 retry scenario message (will be retried)
+- 1 DLQ scenario message (will go to DLQ after max retries)
+
+### Monitor Kafka Topics
+
+**Main Topic** (successful messages):
+```bash
+docker exec -it $(docker ps -qf 'name=kafka') \
+  kafka-console-consumer --bootstrap-server localhost:9093 \
+  --topic place-order-topic --from-beginning
+```
+
+**Retry Topic** (messages being retried):
+```bash
+docker exec -it $(docker ps -qf 'name=kafka') \
+  kafka-console-consumer --bootstrap-server localhost:9093 \
+  --topic place-order-retry-topic --from-beginning
+```
+
+**DLQ Topic** (permanently failed messages):
+```bash
+docker exec -it $(docker ps -qf 'name=kafka') \
+  kafka-console-consumer --bootstrap-server localhost:9093 \
+  --topic place-order-dlq-topic --from-beginning
+```
+
+### Application Logs
+
+Watch the logs to see the retry flow in action:
+- Initial failure and send to retry topic
+- Retry attempts with exponential backoff (1s, 2s, 4s, etc.)
+- Success after retry OR final failure and send to DLQ

@@ -95,3 +95,26 @@ enum class OrderMessageType {
     PRIORITY,
     BULK
 }
+
+// Retry and DLQ Models
+
+data class RetryableMessage(
+    val originalMessage: String,
+    val messageKey: String,
+    val retryCount: Int = 0,
+    val firstAttemptTimestamp: String,
+    val lastAttemptTimestamp: String,
+    val errorMessage: String?,
+    val errorStackTrace: String?
+)
+
+data class DlqMessage(
+    val originalMessage: String,
+    val messageKey: String,
+    val totalRetries: Int,
+    val firstAttemptTimestamp: String,
+    val failedTimestamp: String,
+    val finalErrorMessage: String,
+    val finalErrorStackTrace: String?
+)
+

@@ -1,4 +1,5 @@
 import io.specmatic.async.SqsToKafkaBridge
+import io.specmatic.async.RetryConsumer
 import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterAll
@@ -28,8 +29,10 @@ class ContractTest {
         private const val KAFKA_SERVICE = "kafka"
 
         private lateinit var infrastructure: ComposeContainer
-        private lateinit var appThread: Thread
-        private lateinit var bridge: SqsToKafkaBridge
+        private lateinit var mainBridgeThread: Thread
+        private lateinit var retryConsumerThread: Thread
+        private lateinit var mainBridge: SqsToKafkaBridge
+        private lateinit var retryConsumer: RetryConsumer
 
         @JvmStatic
         @BeforeAll
@@ -64,43 +67,82 @@ class ContractTest {
 
             println("Using SQS endpoint: $sqsEndpoint")
             println("Using Kafka servers: $kafkaBootstrapServers")
+            println("Main SQS Queue: $sqsQueueUrl")
 
-            // Create the bridge instance
-            bridge = SqsToKafkaBridge(
+            // Create the main bridge instance
+            mainBridge = SqsToKafkaBridge(
                 sqsQueueUrl = sqsQueueUrl,
                 kafkaTopic = "place-order-topic",
+                retryTopic = "place-order-retry-topic",
                 sqsEndpoint = sqsEndpoint,
                 kafkaBootstrapServers = kafkaBootstrapServers
             )
 
-            // Start the application in a background thread
-            appThread = Thread {
+            // Create the retry consumer instance (attempts to reprocess messages from retry topic)
+            retryConsumer = RetryConsumer(
+                retryTopic = "place-order-retry-topic",
+                mainKafkaTopic = "place-order-topic",
+                dlqTopic = "place-order-dlq-topic",
+                maxRetries = 3,
+                kafkaBootstrapServers = kafkaBootstrapServers,
+                messageTransformer = mainBridge.messageTransformer
+            )
+
+            // Configure transformer to fail specific order IDs for testing retry/DLQ scenarios
+            mainBridge.messageTransformer.addFailingOrderId("ORD-RETRY-90001")
+            mainBridge.messageTransformer.addFailingOrderId("ORD-DLQ-90001")
+
+            // Start main bridge in a background thread
+            mainBridgeThread = Thread {
                 runBlocking {
-                    bridge.start()
+                    mainBridge.start()
                 }
             }.apply {
                 isDaemon = true
+                name = "MainBridge"
                 start()
             }
 
-            // Wait a bit for the application to start
+            // Start retry consumer in a background thread
+            retryConsumerThread = Thread {
+                runBlocking {
+                    retryConsumer.start()
+                }
+            }.apply {
+                isDaemon = true
+                name = "RetryConsumer"
+                start()
+            }
+
+            // Wait a bit for all components to start
             Thread.sleep(5000)
 
-            println("Application started successfully")
+            println("All application components started successfully")
+            println("- Main Bridge: Processing main SQS queue")
+            println("- Retry Consumer: Managing retry logic within Kafka retry topic")
         }
 
         @JvmStatic
         @AfterAll
         fun tearDown() {
-            // Gracefully stop the application
-            if (::bridge.isInitialized) {
-                println("Stopping application gracefully...")
-                bridge.close()
+            // Gracefully stop all components
+            if (::mainBridge.isInitialized) {
+                println("Stopping main bridge gracefully...")
+                mainBridge.close()
             }
 
-            // Wait for the thread to finish
-            if (::appThread.isInitialized && appThread.isAlive) {
-                appThread.join(5000)
+            if (::retryConsumer.isInitialized) {
+                println("Stopping retry consumer gracefully...")
+                retryConsumer.close()
+            }
+
+            // Wait for threads to finish
+            if (::mainBridgeThread.isInitialized && mainBridgeThread.isAlive) {
+                mainBridgeThread.join(5000)
+            }
+
+            if (::retryConsumerThread.isInitialized && retryConsumerThread.isAlive) {
+                retryConsumerThread.join(5000)
             }
 
             // Stop infrastructure
@@ -149,7 +191,9 @@ class ContractTest {
             println(logs)
             println("=".repeat(60))
 
-            assertThat(logs).contains("Failed: 0")
+            assertThat(logs)
+                .contains("Failed: 0")
+                .doesNotContain("Passed: 0")
         } finally {
             specmaticContainer.stop()
         }
