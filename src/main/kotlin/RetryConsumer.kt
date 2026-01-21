@@ -1,5 +1,10 @@
 package io.specmatic.async
 
+import aws.sdk.kotlin.runtime.auth.credentials.StaticCredentialsProvider
+import aws.sdk.kotlin.services.sqs.SqsClient
+import aws.sdk.kotlin.services.sqs.model.SendMessageRequest
+import aws.smithy.kotlin.runtime.auth.awscredentials.Credentials
+import aws.smithy.kotlin.runtime.net.url.Url
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -22,14 +27,15 @@ import java.util.*
 
 /**
  * Kafka consumer that processes messages from the retry topic
- * Attempts to reprocess messages by transforming and sending to main Kafka topic
+ * Attempts to reprocess messages by transforming and sending to SQS queue
  * If transformation still fails, sends back to retry topic or to DLQ if max retries exceeded
  */
 class RetryConsumer(
     private val retryTopic: String,
-    private val mainKafkaTopic: String,
+    private val sqsQueueUrl: String,
     private val dlqTopic: String,
     private val maxRetries: Int = 3,
+    private val sqsEndpoint: String = "http://localhost:4566",
     private val kafkaBootstrapServers: String = "localhost:9092",
     val messageTransformer: MessageTransformer = MessageTransformer()
 ) {
@@ -64,12 +70,25 @@ class RetryConsumer(
         KafkaProducer<String, String>(props)
     }
 
+    private lateinit var sqsClient: SqsClient
+
     suspend fun start() = coroutineScope {
         logger.info("Starting Retry Consumer...")
         logger.info("Retry Topic: $retryTopic")
-        logger.info("Main Kafka Topic (for reprocessing): $mainKafkaTopic")
+        logger.info("SQS Queue URL (for reprocessing): $sqsQueueUrl")
         logger.info("DLQ Topic: $dlqTopic")
         logger.info("Max Retries: $maxRetries")
+
+        sqsClient = SqsClient {
+            region = "us-east-1"
+            endpointUrl = Url.parse(sqsEndpoint)
+            credentialsProvider = StaticCredentialsProvider(
+                Credentials(
+                    accessKeyId = "test",
+                    secretAccessKey = "test"
+                )
+            )
+        }
 
         synchronized(consumerLock) {
             kafkaConsumer.subscribe(listOf(retryTopic))
@@ -83,6 +102,8 @@ class RetryConsumer(
                 delay(5000)
             }
         }
+
+        sqsClient.close()
     }
 
     private suspend fun processRetryMessages() {
@@ -126,12 +147,12 @@ class RetryConsumer(
             return
         }
 
-        // Attempt to transform and send to main Kafka topic
+        // Attempt to transform and send to SQS queue
         try {
             val transformedMessage = messageTransformer.transformMessage(retryableMessage.originalMessage)
 
             if (transformedMessage != null) {
-                sendToMainKafkaTopic(transformedMessage, retryableMessage.messageKey)
+                sendToSqs(transformedMessage, retryableMessage.messageKey)
                 logger.info("Successfully reprocessed message on retry attempt ${retryableMessage.retryCount + 1}. Message key: ${retryableMessage.messageKey}")
             } else {
                 logger.warn("Message transformation returned null on retry. Sending back to retry topic.")
@@ -147,17 +168,20 @@ class RetryConsumer(
         }
     }
 
-    private fun sendToMainKafkaTopic(transformedMessage: String, messageKey: String) {
-        val record = ProducerRecord(mainKafkaTopic, messageKey, transformedMessage)
+    private suspend fun sendToSqs(transformedMessage: String, messageKey: String) {
+        val sendRequest = SendMessageRequest {
+            queueUrl = sqsQueueUrl
+            messageBody = transformedMessage
+            messageGroupId = messageKey // For FIFO queues, if applicable
+        }
 
-        kafkaProducer.send(record) { metadata, exception ->
-            if (exception != null) {
-                logger.error("Failed to send reprocessed message to main Kafka topic", exception)
-                throw exception
-            } else {
-                logger.info("Reprocessed message sent to Kafka - Topic: ${metadata.topic()}, Partition: ${metadata.partition()}, Offset: ${metadata.offset()}")
-            }
-        }.get() // Wait for acknowledgment
+        try {
+            val response = sqsClient.sendMessage(sendRequest)
+            logger.info("Reprocessed message sent to SQS - MessageId: ${response.messageId}")
+        } catch (e: Exception) {
+            logger.error("Failed to send reprocessed message to SQS", e)
+            throw e
+        }
     }
 
     private fun sendBackToRetryTopic(retryableMessage: RetryableMessage, error: Exception) {
@@ -225,4 +249,3 @@ class RetryConsumer(
         kafkaProducer.close()
     }
 }
-

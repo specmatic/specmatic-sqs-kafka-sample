@@ -1,7 +1,7 @@
 {
-  "name": "Priority_Order_SQS_Kafka",
+  "name": "Priority_Order_Kafka_SQS",
   "receive": {
-    "topic": "place-order-queue",
+    "topic": "place-order-topic",
     "payload": {
       "orderType": "PRIORITY",
       "orderId": "ORD-PRIORITY-90002",
@@ -30,7 +30,7 @@
     }
   },
   "send": {
-    "topic": "place-order-topic",
+    "topic": "place-order-queue",
     "payload": {
       "orderId": "ORD-PRIORITY-90002",
       "itemsCount": "$match(exact: 2)",

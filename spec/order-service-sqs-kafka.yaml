@@ -1,25 +1,25 @@
 asyncapi: 3.0.0
 info:
-  title: Order Service SNS-SQS API
+  title: Order Service Kafka-SQS API
   version: 1.0.0
   description: |
-    When a message is published on a sqs queue, the reply message is expected on a given kafka topic
+    When a message is published on a kafka topic, the reply message is expected on a given SQS queue
 
 servers:
-  sqsServer:
-    host: 'http://localhost:4566/000000000000'
-    protocol: sqs
-    description: AWS SQS server for receiving messages
   kafkaServer:
     host: 'localhost:9092'
     protocol: kafka
-    description: Kafka broker to which the reply message will be sent
+    description: Kafka broker from which the order message will be received
+  sqsServer:
+    host: 'http://localhost:4566/000000000000'
+    protocol: sqs
+    description: AWS SQS server to which the reply message will be sent
 
 channels:
   placeOrder:
-    address: place-order-queue
+    address: place-order-topic
     servers:
-      - $ref: '#/servers/sqsServer'
+      - $ref: '#/servers/kafkaServer'
     messages:
       placeOrderMessage:
         $ref: '#/components/messages/PlaceOrderMessage'
@@ -27,12 +27,12 @@ channels:
         $ref: '#/components/messages/PriorityPlaceOrderMessage'
       bulkPlaceOrderMessage:
         $ref: '#/components/messages/BulkPlaceOrderMessage'
-    description: SQS queue where the place order message will be received
+    description: Kafka topic where the place order message will be received
 
   wipOrder:
-    address: place-order-topic
+    address: place-order-queue
     servers:
-      - $ref: '#/servers/kafkaServer'
+      - $ref: '#/servers/sqsServer'
     messages:
       wipOrderMessage:
         $ref: '#/components/messages/WipOrderMessage'
@@ -40,7 +40,7 @@ channels:
         $ref: '#/components/messages/DeliveredOrderMessage'
       completedOrderMessage:
         $ref: '#/components/messages/CompletedOrderMessage'
-    description: Kafka topic where the WIP orders will be sent
+    description: SQS queue where the WIP orders will be sent
 
   retryTopic:
     address: place-order-retry-topic
@@ -61,7 +61,7 @@ channels:
 
 operations:
   sendOrder:
-    description: Receive an order placement event on the SQS queue and reply with the WIP order message on the kafka topic
+    description: Receive an order placement event on the Kafka topic and reply with the WIP order message on the SQS queue
     action: receive
     channel:
       $ref: '#/channels/placeOrder'

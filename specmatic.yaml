@@ -6,13 +6,13 @@ contracts:
         specType: asyncapi
         config:
           servers:
+            - host: localhost:9092
+              protocol: kafka
             - host: http://localhost:4566/000000000000
               protocol: sqs
               adminCredentials:
                 region: us-east-1
                 aws.access.key.id: test
                 aws.secret.access.key: test
-            - host: localhost:9092
-              protocol: kafka
 
 

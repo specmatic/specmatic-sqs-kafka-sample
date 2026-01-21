@@ -1,20 +1,19 @@
-# SQS to Kafka Bridge
+# Kafka to SQS Bridge
 
-A Kotlin application that consumes order messages from AWS SQS and publishes transformed messages to Apache Kafka, with robust retry and Dead Letter Queue (DLQ) handling for failed messages.
+A Kotlin application that consumes order messages from Apache Kafka and publishes transformed messages to AWS SQS, with robust retry and Dead Letter Queue (DLQ) handling for failed messages.
 
 ## Overview
 
-This service bridges SQS and Kafka by:
-- Polling messages from an SQS queue (long polling)
+This service bridges Kafka and SQS by:
+- Polling messages from a Kafka topic
 - Transforming order messages based on type (Standard → WIP, Priority → DELIVERED, Bulk → COMPLETED)
-- Publishing to Kafka topic
+- Publishing to SQS queue
 - Automatically retrying failed messages with exponential backoff
 - Sending permanently failed messages to DLQ for investigation
-- Deleting successfully processed messages from SQS
 
 ### Architecture
 
-![SQS to Kafka Architecture](assets/SpecmaticSQS.png)
+![Kafka to SQS Architecture](assets/SpecmaticSQS.png)
 
 **Message Flow:**
 1. Standard Order → WIP status (with itemsCount, processingStartedAt)
@@ -25,11 +24,11 @@ This service bridges SQS and Kafka by:
 
 ### Retry & DLQ Flow
 
-**Success Path**: SQS → Transform → Kafka Main Topic
+**Success Path**: Kafka → Transform → SQS Queue
 
 **Failure Path**: 
 ```
-SQS → Transform (fails) → Retry Topic 
+Kafka → Transform (fails) → Retry Topic 
   → Retry Consumer (attempt 1, wait 1s) → Transform (fails) → Retry Topic
   → Retry Consumer (attempt 2, wait 2s) → Transform (fails) → Retry Topic
   → Retry Consumer (attempt 3, wait 4s) → Transform (fails) → DLQ Topic
@@ -37,10 +36,10 @@ SQS → Transform (fails) → Retry Topic
 
 **Key Points:**
 - Retry Consumer processes messages directly from the Retry Topic
-- On each retry attempt, it tries to transform and send to the Main Kafka Topic
+- On each retry attempt, it tries to transform and send to the SQS Queue
 - If transformation still fails, the message goes back to the Retry Topic with incremented retry count
 - After max retries (3), the message is sent to the DLQ Topic
-- No circular loop between SQS and Kafka - retries happen entirely within Kafka
+- No circular loop between Kafka and SQS - retries happen entirely within Kafka
 
 ## Prerequisites
 

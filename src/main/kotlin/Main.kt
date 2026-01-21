@@ -11,12 +11,12 @@ fun main() {
 
     // Configuration - can be moved to config file or environment variables
     // Check system properties first (for tests), then environment variables
-    val sqsQueueUrl = System.getProperty("SQS_QUEUE_URL")
-        ?: System.getenv("SQS_QUEUE_URL")
-        ?: "http://localhost:4566/000000000000/place-order-queue"
     val kafkaTopic = System.getProperty("KAFKA_TOPIC")
         ?: System.getenv("KAFKA_TOPIC")
         ?: "place-order-topic"
+    val sqsQueueUrl = System.getProperty("SQS_QUEUE_URL")
+        ?: System.getenv("SQS_QUEUE_URL")
+        ?: "http://localhost:4566/000000000000/place-order-queue"
     val retryTopic = System.getProperty("RETRY_TOPIC")
         ?: System.getenv("RETRY_TOPIC")
         ?: "place-order-retry-topic"
@@ -34,12 +34,12 @@ fun main() {
         ?: "localhost:9092"
 
     logger.info("=".repeat(60))
-    logger.info("SQS to Kafka Bridge Application with Retry & DLQ")
+    logger.info("Kafka to SQS Bridge Application with Retry & DLQ")
     logger.info("=".repeat(60))
     logger.info("Configuration:")
-    logger.info("  SQS Queue URL: $sqsQueueUrl")
+    logger.info("  Kafka Topic (Input): $kafkaTopic")
+    logger.info("  SQS Queue URL (Output): $sqsQueueUrl")
     logger.info("  SQS Endpoint: $sqsEndpoint")
-    logger.info("  Kafka Topic: $kafkaTopic")
     logger.info("  Retry Topic: $retryTopic")
     logger.info("  DLQ Topic: $dlqTopic")
     logger.info("  Max Retries: $maxRetries")
@@ -49,9 +49,9 @@ fun main() {
     // Shared message transformer
     val messageTransformer = MessageTransformer()
 
-    val bridge = SqsToKafkaBridge(
-        sqsQueueUrl = sqsQueueUrl,
+    val bridge = KafkaToSqsBridge(
         kafkaTopic = kafkaTopic,
+        sqsQueueUrl = sqsQueueUrl,
         retryTopic = retryTopic,
         sqsEndpoint = sqsEndpoint,
         kafkaBootstrapServers = kafkaBootstrapServers,
@@ -60,9 +60,10 @@ fun main() {
 
     val retryConsumer = RetryConsumer(
         retryTopic = retryTopic,
-        mainKafkaTopic = kafkaTopic,
+        sqsQueueUrl = sqsQueueUrl,
         dlqTopic = dlqTopic,
         maxRetries = maxRetries,
+        sqsEndpoint = sqsEndpoint,
         kafkaBootstrapServers = kafkaBootstrapServers,
         messageTransformer = messageTransformer
     )
@@ -79,7 +80,7 @@ fun main() {
         runBlocking {
             // Start both bridge and retry consumer concurrently
             launch {
-                logger.info("Starting SQS to Kafka Bridge...")
+                logger.info("Starting Kafka to SQS Bridge...")
                 bridge.start()
             }
             launch {

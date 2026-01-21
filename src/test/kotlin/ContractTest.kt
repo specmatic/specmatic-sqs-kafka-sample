@@ -1,4 +1,4 @@
-import io.specmatic.async.SqsToKafkaBridge
+import io.specmatic.async.KafkaToSqsBridge
 import io.specmatic.async.RetryConsumer
 import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
@@ -31,7 +31,7 @@ class ContractTest {
         private lateinit var infrastructure: ComposeContainer
         private lateinit var mainBridgeThread: Thread
         private lateinit var retryConsumerThread: Thread
-        private lateinit var mainBridge: SqsToKafkaBridge
+        private lateinit var mainBridge: KafkaToSqsBridge
         private lateinit var retryConsumer: RetryConsumer
 
         @JvmStatic
@@ -58,7 +58,7 @@ class ContractTest {
         }
 
         private fun startApplication() {
-            println("Starting SQS to Kafka Bridge application...")
+            println("Starting Kafka to SQS Bridge application...")
 
             // Use localhost with standard ports from docker-compose
             val sqsEndpoint = "http://localhost:4566"
@@ -67,12 +67,13 @@ class ContractTest {
 
             println("Using SQS endpoint: $sqsEndpoint")
             println("Using Kafka servers: $kafkaBootstrapServers")
-            println("Main SQS Queue: $sqsQueueUrl")
+            println("Kafka Topic (Input): place-order-topic")
+            println("SQS Queue (Output): $sqsQueueUrl")
 
             // Create the main bridge instance
-            mainBridge = SqsToKafkaBridge(
-                sqsQueueUrl = sqsQueueUrl,
+            mainBridge = KafkaToSqsBridge(
                 kafkaTopic = "place-order-topic",
+                sqsQueueUrl = sqsQueueUrl,
                 retryTopic = "place-order-retry-topic",
                 sqsEndpoint = sqsEndpoint,
                 kafkaBootstrapServers = kafkaBootstrapServers
@@ -81,9 +82,10 @@ class ContractTest {
             // Create the retry consumer instance (attempts to reprocess messages from retry topic)
             retryConsumer = RetryConsumer(
                 retryTopic = "place-order-retry-topic",
-                mainKafkaTopic = "place-order-topic",
+                sqsQueueUrl = sqsQueueUrl,
                 dlqTopic = "place-order-dlq-topic",
                 maxRetries = 3,
+                sqsEndpoint = sqsEndpoint,
                 kafkaBootstrapServers = kafkaBootstrapServers,
                 messageTransformer = mainBridge.messageTransformer
             )
@@ -118,7 +120,7 @@ class ContractTest {
             Thread.sleep(5000)
 
             println("All application components started successfully")
-            println("- Main Bridge: Processing main SQS queue")
+            println("- Main Bridge: Processing Kafka topic, sending to SQS queue")
             println("- Retry Consumer: Managing retry logic within Kafka retry topic")
         }
 

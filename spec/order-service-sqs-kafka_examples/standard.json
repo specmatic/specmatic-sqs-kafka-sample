@@ -1,7 +1,7 @@
 {
-  "name": "Standard_Order_SQS_Kafka",
+  "name": "Standard_Order_Kafka_SQS",
   "receive": {
-    "topic": "place-order-queue",
+    "topic": "place-order-topic",
     "payload": {
       "orderType": "STANDARD",
       "orderId": "ORD-90001",
@@ -27,7 +27,7 @@
     }
   },
   "send": {
-    "topic": "place-order-topic",
+    "topic": "place-order-queue",
     "payload": {
       "orderId": "ORD-90001",
       "itemsCount": "$match(exact: 2)",

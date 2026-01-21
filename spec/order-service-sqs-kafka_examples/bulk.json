@@ -1,7 +1,7 @@
 {
   "name": "Bulk_Order_SQS_Kafka",
   "receive": {
-    "topic": "place-order-queue",
+    "topic": "place-order-topic",
     "payload": {
       "orderType": "BULK",
       "batchId": "BATCH-90003",
@@ -57,7 +57,7 @@
     }
   },
   "send": {
-    "topic": "place-order-topic",
+    "topic": "place-order-queue",
     "payload": {
       "batchId": "BATCH-90003",
       "itemsCount": "$match(exact: 4)",

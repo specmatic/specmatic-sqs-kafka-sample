@@ -1,64 +1,42 @@
 #!/bin/bash
 
-# Script to send test order messages matching the AsyncAPI spec
+# Script to send test order messages to the Kafka topic
 
-ENDPOINT="http://localhost:4566"
-QUEUE_URL="http://localhost:4566/000000000000/place-order-queue"
-REGION="us-east-1"
-
-# Set fake credentials for LocalStack (to suppress warnings)
-export AWS_ACCESS_KEY_ID=test
-export AWS_SECRET_ACCESS_KEY=test
+KAFKA_BROKER="localhost:9092"
+TOPIC="place-order-topic"
 
 echo "======================================"
-echo "Sending Test Order Messages to SQS"
+echo "Sending Test Order Messages to Kafka"
 echo "======================================"
 echo ""
 
 # Test message 1 - STANDARD Order (should become WIP)
 echo "1. Sending STANDARD order..."
-aws --endpoint-url=$ENDPOINT --region $REGION sqs send-message \
-  --queue-url $QUEUE_URL \
-  --message-body '{
-    "orderId": "ORD-90001",
-    "customerId": "CUST-44556",
-    "items": [
-      {
-        "productId": "PROD-111",
-        "quantity": 1,
-        "price": 899.99
-      },
-      {
-        "productId": "PROD-222",
-        "quantity": 2,
-        "price": 129.50
-      }
-    ],
-    "totalAmount": 1158.99,
-    "orderDate": "2025-12-09T14:20:00Z"
-  }'
+echo '{"orderType":"STANDARD","orderId":"ORD-90001","customerId":"CUST-44556","items":[{"productId":"PROD-111","quantity":1,"price":899.99},{"productId":"PROD-222","quantity":2,"price":129.50}],"totalAmount":1158.99,"orderDate":"2025-12-09T14:20:00Z"}' | docker exec -i kafka kafka-console-producer --bootstrap-server $KAFKA_BROKER --topic $TOPIC
 
 echo "✅ STANDARD order sent (should transform to WIP status)"
 echo ""
 
 # Test message 2 - PRIORITY Order (should become DELIVERED)
 echo "2. Sending PRIORITY order..."
-aws --endpoint-url=$ENDPOINT --region $REGION sqs send-message \
-  --queue-url $QUEUE_URL \
-  --message-body '{
-    "orderId": "ORD-PRIORITY-90002",
-    "customerId": "CUST-77889",
-    "items": [
-      {
-        "productId": "PROD-555",
-        "quantity": 3,
-        "price": 249.99
-      },
-      {
-        "productId": "PROD-666",
-        "quantity": 1,
-        "price": 599.00
-      }
+echo '{"orderType":"PRIORITY","orderId":"ORD-PRIORITY-90002","customerId":"CUST-77889","items":[{"productId":"PROD-555","quantity":3,"price":249.99},{"productId":"PROD-666","quantity":1,"price":599.00}],"totalAmount":1348.97,"orderDate":"2025-12-09T08:00:00Z","priorityLevel":"URGENT","expectedDeliveryDate":"2025-12-09T20:00:00Z"}' | docker exec -i kafka kafka-console-producer --bootstrap-server $KAFKA_BROKER --topic $TOPIC
+
+echo "✅ PRIORITY order sent (should transform to DELIVERED status)"
+echo ""
+
+# Test message 3 - BULK Order (should become COMPLETED)
+echo "3. Sending BULK order..."
+echo '{"orderType":"BULK","batchId":"BATCH-90003","customerId":"CUST-99001","orders":[{"orderId":"ORD-BULK-001","items":[{"productId":"PROD-333","quantity":10,"price":45.50}],"totalAmount":455.00},{"orderId":"ORD-BULK-002","items":[{"productId":"PROD-444","quantity":5,"price":89.99},{"productId":"PROD-555","quantity":3,"price":249.99}],"totalAmount":1199.92},{"orderId":"ORD-BULK-003","items":[{"productId":"PROD-666","quantity":20,"price":12.75}],"totalAmount":255.00}],"totalOrderCount":3,"batchTotalAmount":1909.92,"orderDate":"2025-12-07T12:00:00Z"}' | docker exec -i kafka kafka-console-producer --bootstrap-server $KAFKA_BROKER --topic $TOPIC
+
+echo "✅ BULK order sent (should transform to COMPLETED status)"
+echo ""
+
+echo "======================================"
+echo "All test messages sent!"
+echo "======================================"
+echo ""
+echo "To view messages in the SQS queue, run:"
+echo "  aws --endpoint-url=http://localhost:4566 --region us-east-1 sqs receive-message --queue-url http://localhost:4566/000000000000/place-order-queue"
     ],
     "totalAmount": 1348.97,
     "orderDate": "2025-12-09T08:00:00Z",

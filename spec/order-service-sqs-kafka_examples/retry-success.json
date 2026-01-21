@@ -1,7 +1,7 @@
 {
   "name": "Retry_Scenario_Standard_Order",
   "receive": {
-    "topic": "place-order-queue",
+    "topic": "place-order-topic",
     "payload": {
       "orderType": "STANDARD",
       "orderId": "ORD-RETRY-90001",
@@ -34,7 +34,7 @@
     }
   },
   "send": {
-    "topic": "place-order-topic",
+    "topic": "place-order-queue",
     "payload": {
       "orderId": "ORD-RETRY-90001",
       "itemsCount": 1,
