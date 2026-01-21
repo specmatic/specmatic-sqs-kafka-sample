@@ -63,7 +63,7 @@ class MessageTransformer {
                 val attempts = retryAttempts.getOrDefault(orderId, 0) + 1
                 retryAttempts[orderId] = attempts
 
-                logger.info("Processing failing order ID: $orderId, attempt: $attempts")
+                logger.info("Processing failing order ID: $orderId")
 
                 // For retry scenario: fail on first attempt, succeed on retry
                 if (orderId == "ORD-RETRY-90001") {

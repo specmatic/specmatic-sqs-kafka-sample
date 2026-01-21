@@ -95,7 +95,7 @@ class RetryConsumer(
             return
         }
 
-        logger.info("Processing ${records.count()} retry message(s)")
+        logger.info("Processing the received retry message..")
 
         for (record in records) {
             try {
