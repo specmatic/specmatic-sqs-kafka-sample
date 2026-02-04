@@ -32,7 +32,7 @@ This service bridges SQS and Kafka by:
 ### 1. Run the Contract Test
 
 ```bash
-./gradlew clean test
+./gradlew test
 ```
 
 This approach uses JUnit tests with TestContainers to programmatically start infrastructure, run the application, and execute Specmatic tests.
