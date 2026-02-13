@@ -1,20 +1,34 @@
-version: 2
-contracts:
-  - git:
-      url: https://github.com/specmatic/specmatic-order-contracts
-    provides:
-      - specs:
-          - io/specmatic/examples/store/asyncapi/3_0_0/sqs_kafka/order-service-sqs-kafka.yaml
-        specType: asyncapi
-        config:
-          servers:
-            - host: http://localhost:4566/000000000000
-              protocol: sqs
-              adminCredentials:
-                region: us-east-1
-                aws.access.key.id: test
-                aws.secret.access.key: test
-            - host: localhost:9092
-              protocol: kafka
+version: 3
+systemUnderTest:
+  service:
+    $ref: "#/components/services/sqsKafkaService"
+    runOptions:
+      $ref: "#/components/runOptions/sqsKafkaServiceTest"
+components:
+  sources:
+    specmaticOrderContracts:
+      git:
+        url: https://github.com/specmatic/specmatic-order-contracts.git
+  services:
+    sqsKafkaService:
+      definitions:
+        - definition:
+            source:
+              $ref: "#/components/sources/specmaticOrderContracts"
+            specs:
+              - io/specmatic/examples/store/asyncapi/3_0_0/sqs_kafka/order-service-sqs-kafka.yaml
+  runOptions:
+    sqsKafkaServiceTest:
+      asyncapi:
+        type: test
+        servers:
+          - host: http://localhost:4566/000000000000
+            protocol: sqs
+            adminCredentials:
+              region: us-east-1
+              aws.access.key.id: test
+              aws.secret.access.key: test
+          - host: localhost:9092
+            protocol: kafka
 
 
