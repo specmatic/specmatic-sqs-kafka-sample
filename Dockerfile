@@ -1,5 +1,5 @@
 # Multi-stage build for efficient image size
-FROM gradle:8.14-jdk17 AS build
+FROM gradle:9.3-jdk17 AS build
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ COPY src ./src
 RUN gradle build -x test --no-daemon
 
 # Runtime stage
-FROM eclipse-temurin:17.0.17_10-jre
+FROM eclipse-temurin:17.0.18_8-jre
 
 WORKDIR /app
 

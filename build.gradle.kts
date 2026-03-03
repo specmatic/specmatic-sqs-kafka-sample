@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.3.0"
+    kotlin("jvm") version "2.3.10"
     application
 }
 
@@ -11,21 +11,21 @@ repositories {
 }
 
 dependencies {
-    implementation("aws.sdk.kotlin:sqs:1.5.123")
-    implementation("aws.smithy.kotlin:http-client-engine-crt:1.5.28")
-    implementation("org.apache.kafka:kafka-clients:3.9.1")
+    implementation("aws.sdk.kotlin:sqs:1.6.27")
+    implementation("aws.smithy.kotlin:http-client-engine-crt:1.6.5")
+    implementation("org.apache.kafka:kafka-clients:3.9.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("org.slf4j:slf4j-api:2.0.17")
-    implementation("ch.qos.logback:logback-classic:1.5.25")
-    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.21.0")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.0")
+    implementation("ch.qos.logback:logback-classic:1.5.32")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.21.1")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.1")
 
     testImplementation(kotlin("test"))
     testImplementation("org.testcontainers:testcontainers:2.0.3")
     testImplementation("org.testcontainers:junit-jupiter:1.21.4")
     testImplementation("org.testcontainers:kafka:1.21.4")
     testImplementation("org.testcontainers:localstack:1.21.4")
-    testImplementation("org.assertj:assertj-core:3.27.6")
+    testImplementation("org.assertj:assertj-core:3.27.7")
 }
 
 application {
