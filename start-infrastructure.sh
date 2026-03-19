@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "======================================"
-echo "Starting SQS to Kafka Bridge Setup"
+echo "Starting Kafka to SQS Bridge Setup"
 echo "======================================"
 echo ""
 
@@ -53,7 +53,7 @@ echo ""
 echo "Next steps:"
 echo "  1. Run the application:    ./gradlew run"
 echo "  2. Send test messages:     ./send-test-message.sh"
+echo "  3. Read queue output:      ./consume-sqs-messages.sh"
 echo ""
 echo "To stop all services:        docker compose down"
 echo "======================================"
-

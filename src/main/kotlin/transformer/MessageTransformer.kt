@@ -30,23 +30,7 @@ class MessageTransformer {
     }
 
     /**
-     * Remove an order ID from the failing list
-     */
-    fun removeFailingOrderId(orderId: String) {
-        failingOrderIds.remove(orderId)
-        logger.info("Order ID $orderId removed from failing list")
-    }
-
-    /**
-     * Clear all failing order IDs
-     */
-    fun clearFailingOrderIds() {
-        failingOrderIds.clear()
-        logger.info("Cleared all failing order IDs")
-    }
-
-    /**
-     * Transforms the incoming SQS message to the appropriate Kafka message format
+     * Transforms an incoming Kafka order message to the SQS payload format
      * Uses Jackson's polymorphic deserialization based on the orderType discriminator
      *
      * @throws MessageTransformationException if transformation fails
@@ -105,18 +89,6 @@ class MessageTransformer {
             is StandardOrderMessage -> orderMessage.orderId
             is PriorityOrderMessage -> orderMessage.orderId
             is BulkOrderMessage -> orderMessage.batchId
-        }
-    }
-
-    /**
-     * Determines the message type from a deserialized order message
-     * Useful for extracting message keys
-     */
-    fun getMessageType(orderMessage: OrderMessage): OrderMessageType {
-        return when (orderMessage) {
-            is StandardOrderMessage -> OrderMessageType.STANDARD
-            is PriorityOrderMessage -> OrderMessageType.PRIORITY
-            is BulkOrderMessage -> OrderMessageType.BULK
         }
     }
 
@@ -192,4 +164,3 @@ class MessageTransformer {
         }
     }
 }
-

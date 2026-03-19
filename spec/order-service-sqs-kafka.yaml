@@ -380,7 +380,7 @@ components:
     WipOrderMessage:
       name: WipOrderMessage
       title: Work In Progress Order Event
-      summary: Transformed order message with WIP status sent to Kafka
+      summary: Transformed order message with WIP status sent to SQS
       contentType: application/json
       payload:
         type: object
@@ -412,11 +412,12 @@ components:
           - orderId
           - itemsCount
           - status
+          - processingStartedAt
 
     DeliveredOrderMessage:
       name: DeliveredOrderMessage
       title: Delivered Order Event
-      summary: Order message with DELIVERED status sent to Kafka
+      summary: Order message with DELIVERED status sent to SQS
       contentType: application/json
       payload:
         type: object
@@ -458,7 +459,7 @@ components:
     CompletedOrderMessage:
       name: CompletedOrderMessage
       title: Completed Order Event
-      summary: Order message with COMPLETED status sent to Kafka
+      summary: Order message with COMPLETED status sent to SQS
       contentType: application/json
       payload:
         type: object
@@ -490,10 +491,11 @@ components:
             examples:
               - true
         required:
-          - orderId
+          - batchId
           - itemsCount
           - status
           - completedAt
+          - customerConfirmation
 
     RetryMessage:
       name: RetryMessage
@@ -548,7 +550,12 @@ components:
           - lastAttemptTimestamp
 
     PlaceOrderDlqMessage:
+      name: PlaceOrderDlqMessage
+      title: Dead Letter Queue Event
+      summary: Message sent to the DLQ topic after retries are exhausted
+      contentType: application/json
       payload:
+        type: object
         properties:
           originalMessage:
             type: string
@@ -570,3 +577,6 @@ components:
           - originalMessage
           - messageKey
           - totalRetries
+          - firstAttemptTimestamp
+          - failedTimestamp
+          - finalErrorMessage

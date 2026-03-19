@@ -82,7 +82,7 @@ services:
     networks:
       - sqs-kafka-network
 
-  # SQS to Kafka Bridge Application
+  # Kafka to SQS bridge application
   sqs-kafka-bridge:
     build:
       context: .
@@ -122,4 +122,3 @@ services:
 networks:
   sqs-kafka-network:
     driver: bridge
-
