@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "2.3.10"
+    kotlin("jvm") version "2.3.20"
     application
 }
 
@@ -11,8 +11,8 @@ repositories {
 }
 
 dependencies {
-    implementation("aws.sdk.kotlin:sqs:1.6.27")
-    implementation("aws.smithy.kotlin:http-client-engine-crt:1.6.5")
+    implementation("aws.sdk.kotlin:sqs:1.6.36")
+    implementation("aws.smithy.kotlin:http-client-engine-crt:1.6.6")
     implementation("org.apache.kafka:kafka-clients:3.9.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("org.slf4j:slf4j-api:2.0.17")
