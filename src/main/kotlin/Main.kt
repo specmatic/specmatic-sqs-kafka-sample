@@ -54,6 +54,7 @@ class BridgeApplication(
         kafkaTopic = config.kafkaTopic,
         sqsQueueUrl = config.sqsQueueUrl,
         retryTopic = config.retryTopic,
+        dlqTopic = config.dlqTopic,
         sqsEndpoint = config.sqsEndpoint,
         kafkaBootstrapServers = config.kafkaBootstrapServers,
         messageTransformer = messageTransformer

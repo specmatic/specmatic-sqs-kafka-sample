@@ -1,5 +1,5 @@
 {
-  "name": "DLQ_Scenario_Priority_Order",
+  "name": "Receive_Retry_DLQ_Scenario_Priority_Order",
   "receive": {
     "topic": "place-order-topic",
     "payload": {

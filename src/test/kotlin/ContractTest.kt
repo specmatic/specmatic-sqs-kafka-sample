@@ -59,6 +59,7 @@ class ContractTest {
             // Configure transformer to fail specific order IDs for testing retry/DLQ scenarios
             application.messageTransformer.addFailingOrderId("ORD-RETRY-90001")
             application.messageTransformer.addFailingOrderId("ORD-DLQ-90001")
+            application.messageTransformer.addDirectDlqOrderId("ORD-RECEIVE-DLQ-90001")
 
             application.startAsync()
 

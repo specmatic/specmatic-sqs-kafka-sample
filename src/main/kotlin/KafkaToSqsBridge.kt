@@ -9,6 +9,8 @@ import aws.smithy.kotlin.runtime.net.url.Url
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.specmatic.async.model.RetryableMessage
+import io.specmatic.async.model.DlqMessage
+import io.specmatic.async.transformer.DirectToDlqMessageTransformationException
 import io.specmatic.async.transformer.MessageTransformer
 import io.specmatic.async.transformer.MessageTransformationException
 import kotlinx.coroutines.coroutineScope
@@ -30,6 +32,7 @@ class KafkaToSqsBridge(
     private val kafkaTopic: String,
     private val sqsQueueUrl: String,
     private val retryTopic: String,
+    private val dlqTopic: String = "place-order-dlq-topic",
     private val sqsEndpoint: String = "http://localhost:4566",
     private val kafkaBootstrapServers: String = "localhost:9092",
     val messageTransformer: MessageTransformer = MessageTransformer()
@@ -128,6 +131,9 @@ class KafkaToSqsBridge(
                     } else {
                         logger.warn("Message transformation returned null. Key: ${record.key()}")
                     }
+                } catch (e: DirectToDlqMessageTransformationException) {
+                    logger.warn("Message transformation failed and will be sent directly to DLQ. Key: ${record.key()}")
+                    sendToDlq(messageBody, 0, correlationId, e)
                 } catch (e: MessageTransformationException) {
                     // Transformation failed - send to retry topic
                     logger.warn("Message transformation failed, sending to retry topic. Key: ${record.key()}")
@@ -194,6 +200,44 @@ class KafkaToSqsBridge(
             }.get()
         } catch (e: Exception) {
             logger.error("Failed to create retry message", e)
+        }
+    }
+
+    private fun sendToDlq(
+        originalMessage: String,
+        totalRetries: Int,
+        correlationId: String,
+        error: Exception
+    ) {
+        try {
+            Thread.sleep(1000)
+
+            val messageKey = messageTransformer.extractMessageKeyFromJson(originalMessage)
+            val now = Instant.now().toString()
+
+            val dlqMessage = DlqMessage(
+                originalMessage = originalMessage,
+                messageKey = messageKey,
+                totalRetries = totalRetries,
+                firstAttemptTimestamp = now,
+                failedTimestamp = now,
+                finalErrorMessage = error.message ?: "Direct DLQ failure",
+                finalErrorStackTrace = error.stackTraceToString()
+            )
+
+            val messageJson = objectMapper.writeValueAsString(dlqMessage)
+            val record = ProducerRecord(dlqTopic, messageKey, messageJson)
+            addCorrelationIdHeader(record, correlationId)
+
+            kafkaProducer.send(record) { metadata, exception ->
+                if (exception != null) {
+                    logger.error("Failed to send message directly to DLQ - THIS IS CRITICAL!", exception)
+                } else {
+                    logger.info("Message sent directly to DLQ - Partition: ${metadata.partition()}, Offset: ${metadata.offset()}")
+                }
+            }.get()
+        } catch (e: Exception) {
+            logger.error("Failed to create DLQ message", e)
         }
     }
 

@@ -9,7 +9,8 @@ import java.time.Instant
 /**
  * Custom exception for message transformation failures
  */
-class MessageTransformationException(message: String, cause: Throwable? = null) : Exception(message, cause)
+open class MessageTransformationException(message: String, cause: Throwable? = null) : Exception(message, cause)
+class DirectToDlqMessageTransformationException(message: String, cause: Throwable? = null) : MessageTransformationException(message, cause)
 
 class MessageTransformer {
     private val logger = LoggerFactory.getLogger(MessageTransformer::class.java)
@@ -20,6 +21,7 @@ class MessageTransformer {
 
     // Track retry attempts for specific order IDs
     private val retryAttempts = mutableMapOf<String, Int>()
+    private val directDlqOrderIds = mutableSetOf<String>()
 
     /**
      * Mark an order ID to fail transformation (for testing purposes)
@@ -27,6 +29,11 @@ class MessageTransformer {
     fun addFailingOrderId(orderId: String) {
         failingOrderIds.add(orderId)
         logger.info("Order ID $orderId marked to fail transformation")
+    }
+
+    fun addDirectDlqOrderId(orderId: String) {
+        directDlqOrderIds.add(orderId)
+        logger.info("Order ID $orderId marked for direct DLQ")
     }
 
     /**
@@ -42,6 +49,10 @@ class MessageTransformer {
 
             // Check if this order should fail (for testing retry/DLQ)
             val orderId = extractOrderId(orderMessage)
+            if (orderId in directDlqOrderIds) {
+                throw DirectToDlqMessageTransformationException("Simulated non-retryable transformation failure for order: $orderId")
+            }
+
             if (orderId in failingOrderIds) {
                 // Track retry attempts
                 val attempts = retryAttempts.getOrDefault(orderId, 0) + 1
