@@ -51,6 +51,7 @@
       "orderDate": "2025-12-07T12:00:00Z"
     },
     "headers": {
+      "CorrelationId": "corr-bulk-90003",
       "MessageGroupId": "bulk-order-group",
       "Subject": "Bulk Order Placed",
       "BatchId": "BATCH-90003"
@@ -58,6 +59,9 @@
   },
   "send": {
     "topic": "place-order-queue",
+    "headers": {
+      "CorrelationId": "corr-bulk-90003"
+    },
     "payload": {
       "batchId": "BATCH-90003",
       "itemsCount": "$match(exact: 4)",

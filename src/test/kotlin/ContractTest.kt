@@ -88,7 +88,7 @@ class ContractTest {
     fun `run contract test`() {
         // Setup Specmatic container with host network mode
         val specmaticContainer = GenericContainer(DockerImageName.parse("specmatic/enterprise"))
-            .withImagePullPolicy(PullPolicy.alwaysPull())
+//            .withImagePullPolicy(PullPolicy.alwaysPull())
             .withCommand(
                 "test"
             )

@@ -121,9 +121,10 @@ class RetryConsumer(
         for (record in records) {
             try {
                 val retryableMessage = objectMapper.readValue<RetryableMessage>(record.value())
+                val correlationId = correlationIdFrom(record)
                 logger.info("Processing retry message - Key: ${record.key()}, Retry Count: ${retryableMessage.retryCount}")
 
-                processRetryMessage(retryableMessage)
+                processRetryMessage(retryableMessage, correlationId)
             } catch (e: Exception) {
                 logger.error("Error processing retry record at offset ${record.offset()}", e)
             }
@@ -134,7 +135,7 @@ class RetryConsumer(
         }
     }
 
-    private suspend fun processRetryMessage(retryableMessage: RetryableMessage) {
+    private suspend fun processRetryMessage(retryableMessage: RetryableMessage, correlationId: String) {
         // Wait before retry (exponential backoff)
         val delayMs = calculateBackoff(retryableMessage.retryCount)
         logger.info("Waiting ${delayMs}ms before retry attempt ${retryableMessage.retryCount + 1}")
@@ -143,7 +144,7 @@ class RetryConsumer(
         // Check if max retries exceeded
         if (retryableMessage.retryCount >= maxRetries) {
             logger.warn("Max retries ($maxRetries) exceeded for message key: ${retryableMessage.messageKey}. Sending to DLQ")
-            sendToDlq(retryableMessage)
+            sendToDlq(retryableMessage, correlationId)
             return
         }
 
@@ -152,27 +153,28 @@ class RetryConsumer(
             val transformedMessage = messageTransformer.transformMessage(retryableMessage.originalMessage)
 
             if (transformedMessage != null) {
-                sendToSqs(transformedMessage, retryableMessage.messageKey)
+                sendToSqs(transformedMessage, retryableMessage.messageKey, correlationId)
                 logger.info("Successfully reprocessed message on retry attempt ${retryableMessage.retryCount + 1}. Message key: ${retryableMessage.messageKey}")
             } else {
                 logger.warn("Message transformation returned null on retry. Sending back to retry topic.")
                 val error = MessageTransformationException("Transformation returned null")
-                sendBackToRetryTopic(retryableMessage, error)
+                sendBackToRetryTopic(retryableMessage, correlationId, error)
             }
         } catch (e: MessageTransformationException) {
             logger.warn("Message transformation failed on retry attempt ${retryableMessage.retryCount + 1}. Sending back to retry topic. Message key: ${retryableMessage.messageKey}")
-            sendBackToRetryTopic(retryableMessage, e)
+            sendBackToRetryTopic(retryableMessage, correlationId, e)
         } catch (e: Exception) {
             logger.error("Unexpected error during retry processing. Sending back to retry topic.", e)
-            sendBackToRetryTopic(retryableMessage, e)
+            sendBackToRetryTopic(retryableMessage, correlationId, e)
         }
     }
 
-    private suspend fun sendToSqs(transformedMessage: String, messageKey: String) {
+    private suspend fun sendToSqs(transformedMessage: String, messageKey: String, correlationId: String) {
         val sendRequest = SendMessageRequest {
             queueUrl = sqsQueueUrl
             messageBody = transformedMessage
             messageGroupId = messageKey // For FIFO queues, if applicable
+            messageAttributes = sqsCorrelationAttributes(correlationId)
         }
 
         try {
@@ -184,7 +186,7 @@ class RetryConsumer(
         }
     }
 
-    private fun sendBackToRetryTopic(retryableMessage: RetryableMessage, error: Exception) {
+    private fun sendBackToRetryTopic(retryableMessage: RetryableMessage, correlationId: String, error: Exception) {
         val newRetryCount = retryableMessage.retryCount + 1
 
         val updatedRetryMessage = retryableMessage.copy(
@@ -196,6 +198,7 @@ class RetryConsumer(
 
         val messageJson = objectMapper.writeValueAsString(updatedRetryMessage)
         val record = ProducerRecord(retryTopic, retryableMessage.messageKey, messageJson)
+        addCorrelationIdHeader(record, correlationId)
 
         kafkaProducer.send(record) { metadata, exception ->
             if (exception != null) {
@@ -206,7 +209,7 @@ class RetryConsumer(
         }.get()
     }
 
-    private fun sendToDlq(retryableMessage: RetryableMessage) {
+    private fun sendToDlq(retryableMessage: RetryableMessage, correlationId: String) {
         val dlqMessage = DlqMessage(
             originalMessage = retryableMessage.originalMessage,
             messageKey = retryableMessage.messageKey,
@@ -219,6 +222,7 @@ class RetryConsumer(
 
         val messageJson = objectMapper.writeValueAsString(dlqMessage)
         val record = ProducerRecord(dlqTopic, retryableMessage.messageKey, messageJson)
+        addCorrelationIdHeader(record, correlationId)
 
         kafkaProducer.send(record) { metadata, exception ->
             if (exception != null) {

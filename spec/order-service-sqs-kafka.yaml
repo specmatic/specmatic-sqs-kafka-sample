@@ -102,9 +102,16 @@ components:
       title: Order Created Event
       summary: Event triggered when a new order is created
       contentType: application/json
+      correlationId:
+        location: "$message.header#/CorrelationId"
       headers:
         type: object
         properties:
+          CorrelationId:
+            type: string
+            description: Correlates the order across Kafka, SQS, retry, and DLQ flows
+            examples:
+              - corr-standard-90001
           MessageGroupId:
             type: string
             description: FIFO message group ID
@@ -115,6 +122,8 @@ components:
             description: Message subject
             examples:
               - Order Placed
+        required:
+          - CorrelationId
       payload:
         type: object
         properties:
@@ -179,9 +188,16 @@ components:
       title: Priority Order Created Event
       summary: Event triggered when a priority order is created
       contentType: application/json
+      correlationId:
+        location: "$message.header#/CorrelationId"
       headers:
         type: object
         properties:
+          CorrelationId:
+            type: string
+            description: Correlates the order across Kafka, SQS, retry, and DLQ flows
+            examples:
+              - corr-priority-90002
           MessageGroupId:
             type: string
             description: FIFO message group ID
@@ -200,6 +216,8 @@ components:
               - URGENT
             examples:
               - HIGH
+        required:
+          - CorrelationId
       payload:
         type: object
         properties:
@@ -280,9 +298,16 @@ components:
       title: Bulk Order Created Event
       summary: Event triggered when multiple orders are placed in bulk
       contentType: application/json
+      correlationId:
+        location: "$message.header#/CorrelationId"
       headers:
         type: object
         properties:
+          CorrelationId:
+            type: string
+            description: Correlates the order across Kafka, SQS, retry, and DLQ flows
+            examples:
+              - corr-bulk-90003
           MessageGroupId:
             type: string
             description: FIFO message group ID
@@ -298,6 +323,8 @@ components:
             description: Batch identifier for bulk orders
             examples:
               - BATCH-001
+        required:
+          - CorrelationId
       payload:
         type: object
         properties:
@@ -382,6 +409,16 @@ components:
       title: Work In Progress Order Event
       summary: Transformed order message with WIP status sent to SQS
       contentType: application/json
+      headers:
+        type: object
+        properties:
+          CorrelationId:
+            type: string
+            description: Correlates the order across Kafka, SQS, retry, and DLQ flows
+            examples:
+              - corr-standard-90001
+        required:
+          - CorrelationId
       payload:
         type: object
         properties:
@@ -419,6 +456,16 @@ components:
       title: Delivered Order Event
       summary: Order message with DELIVERED status sent to SQS
       contentType: application/json
+      headers:
+        type: object
+        properties:
+          CorrelationId:
+            type: string
+            description: Correlates the order across Kafka, SQS, retry, and DLQ flows
+            examples:
+              - corr-priority-90002
+        required:
+          - CorrelationId
       payload:
         type: object
         properties:
@@ -461,6 +508,16 @@ components:
       title: Completed Order Event
       summary: Order message with COMPLETED status sent to SQS
       contentType: application/json
+      headers:
+        type: object
+        properties:
+          CorrelationId:
+            type: string
+            description: Correlates the order across Kafka, SQS, retry, and DLQ flows
+            examples:
+              - corr-bulk-90003
+        required:
+          - CorrelationId
       payload:
         type: object
         properties:
@@ -502,6 +559,16 @@ components:
       title: Retry Message Event
       summary: Message sent to retry topic when processing fails
       contentType: application/json
+      headers:
+        type: object
+        properties:
+          CorrelationId:
+            type: string
+            description: Correlates the order across Kafka, SQS, retry, and DLQ flows
+            examples:
+              - corr-retry-90001
+        required:
+          - CorrelationId
       payload:
         type: object
         properties:
@@ -554,6 +621,16 @@ components:
       title: Dead Letter Queue Event
       summary: Message sent to the DLQ topic after retries are exhausted
       contentType: application/json
+      headers:
+        type: object
+        properties:
+          CorrelationId:
+            type: string
+            description: Correlates the order across Kafka, SQS, retry, and DLQ flows
+            examples:
+              - corr-dlq-90001
+        required:
+          - CorrelationId
       payload:
         type: object
         properties:

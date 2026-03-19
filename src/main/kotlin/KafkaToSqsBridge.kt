@@ -2,6 +2,7 @@ package io.specmatic.async
 
 import aws.sdk.kotlin.runtime.auth.credentials.StaticCredentialsProvider
 import aws.sdk.kotlin.services.sqs.SqsClient
+import aws.sdk.kotlin.services.sqs.model.MessageAttributeValue
 import aws.sdk.kotlin.services.sqs.model.SendMessageRequest
 import aws.smithy.kotlin.runtime.auth.awscredentials.Credentials
 import aws.smithy.kotlin.runtime.net.url.Url
@@ -114,6 +115,7 @@ class KafkaToSqsBridge(
         for (record in records) {
             try {
                 val messageBody = record.value()
+                val correlationId = correlationIdFrom(record)
                 logger.info("Received message from Kafka: $messageBody")
 
                 try {
@@ -121,7 +123,7 @@ class KafkaToSqsBridge(
 
                     if (transformedMessage != null) {
                         val messageKey = messageTransformer.extractMessageKeyFromJson(messageBody)
-                        sendToSqs(transformedMessage, messageKey)
+                        sendToSqs(transformedMessage, messageKey, correlationId)
                         logger.info("Successfully processed and forwarded message to SQS")
                     } else {
                         logger.warn("Message transformation returned null. Key: ${record.key()}")
@@ -129,7 +131,7 @@ class KafkaToSqsBridge(
                 } catch (e: MessageTransformationException) {
                     // Transformation failed - send to retry topic
                     logger.warn("Message transformation failed, sending to retry topic. Key: ${record.key()}")
-                    sendToRetryTopic(messageBody, 0, null, e)
+                    sendToRetryTopic(messageBody, 0, null, correlationId, e)
                 }
             } catch (e: Exception) {
                 logger.error("Error processing message: ${record.key()}", e)
@@ -141,11 +143,12 @@ class KafkaToSqsBridge(
         }
     }
 
-    private suspend fun sendToSqs(message: String, messageKey: String) {
+    private suspend fun sendToSqs(message: String, messageKey: String, correlationId: String) {
         val sendRequest = SendMessageRequest {
             queueUrl = sqsQueueUrl
             messageBody = message
             messageGroupId = messageKey // For FIFO queues, if applicable
+            messageAttributes = sqsCorrelationAttributes(correlationId)
         }
 
         try {
@@ -157,7 +160,13 @@ class KafkaToSqsBridge(
         }
     }
 
-    private fun sendToRetryTopic(originalMessage: String, currentRetryCount: Int, firstAttemptTimestamp: String?, error: Exception) {
+    private fun sendToRetryTopic(
+        originalMessage: String,
+        currentRetryCount: Int,
+        firstAttemptTimestamp: String?,
+        correlationId: String,
+        error: Exception
+    ) {
         try {
             val messageKey = messageTransformer.extractMessageKeyFromJson(originalMessage)
             val now = Instant.now().toString()
@@ -174,6 +183,7 @@ class KafkaToSqsBridge(
 
             val messageJson = objectMapper.writeValueAsString(retryableMessage)
             val record = ProducerRecord(retryTopic, messageKey, messageJson)
+            addCorrelationIdHeader(record, correlationId)
 
             kafkaProducer.send(record) { metadata, exception ->
                 if (exception != null) {
@@ -196,4 +206,3 @@ class KafkaToSqsBridge(
         kafkaProducer.close()
     }
 }
-

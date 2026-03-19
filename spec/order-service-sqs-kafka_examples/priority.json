@@ -24,6 +24,7 @@
       "expectedDeliveryDate": "2025-12-09T20:00:00Z"
     },
     "headers": {
+      "CorrelationId": "corr-priority-90002",
       "MessageGroupId": "priority-order-group",
       "Subject": "Priority Order Placed",
       "Priority": "URGENT"
@@ -31,6 +32,9 @@
   },
   "send": {
     "topic": "place-order-queue",
+    "headers": {
+      "CorrelationId": "corr-priority-90002"
+    },
     "payload": {
       "orderId": "ORD-PRIORITY-90002",
       "itemsCount": "$match(exact: 2)",

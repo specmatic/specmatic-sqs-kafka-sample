@@ -19,6 +19,7 @@
       "expectedDeliveryDate": "2026-01-20T18:00:00Z"
     },
     "headers": {
+      "CorrelationId": "corr-dlq-90001",
       "MessageGroupId": "dlq-test-group",
       "Subject": "DLQ Test Order",
       "Priority": "HIGH"
@@ -26,6 +27,9 @@
   },
   "retry": {
     "topic": "place-order-retry-topic",
+    "headers": {
+      "CorrelationId": "corr-dlq-90001"
+    },
     "payload": {
       "originalMessage": "(string)",
       "messageKey": "ORD-DLQ-90001",
@@ -38,6 +42,9 @@
   },
   "dlq": {
     "topic": "place-order-dlq-topic",
+    "headers": {
+      "CorrelationId": "corr-dlq-90001"
+    },
     "payload": {
       "originalMessage": "(string)",
       "messageKey": "ORD-DLQ-90001",
@@ -49,4 +56,3 @@
     }
   }
 }
-
