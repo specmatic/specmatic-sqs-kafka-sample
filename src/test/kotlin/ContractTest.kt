@@ -10,7 +10,6 @@ import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.utility.DockerImageName
 import org.testcontainers.containers.BindMode
-import org.testcontainers.images.PullPolicy
 import java.io.File
 import java.time.Duration
 
@@ -113,19 +112,9 @@ class ContractTest {
             .waitingFor(Wait.forLogMessage(".*Failed:.*", 1))
 
         try {
-            // Start the Specmatic container
             specmaticContainer.start()
 
-            // Check the logs for test results
-            val logs = specmaticContainer.logs
-
-            println("=".repeat(60))
-            println("Specmatic Test Results")
-            println("=".repeat(60))
-            println(logs)
-            println("=".repeat(60))
-
-            assertThat(logs)
+            assertThat(specmaticContainer.logs)
                 .contains("Failed: 0")
                 .doesNotContain("Passed: 0")
         } finally {
