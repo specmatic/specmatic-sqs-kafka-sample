@@ -35,8 +35,7 @@ USER appuser
 ENV SQS_QUEUE_URL="http://localstack:4566/000000000000/place-order-queue" \
     SQS_ENDPOINT="http://localstack:4566" \
     KAFKA_TOPIC="place-order-topic" \
-    KAFKA_BOOTSTRAP_SERVERS="kafka:9093"
+    KAFKA_BOOTSTRAP_SERVERS="kafka:29092"
 
 # Run the application
 ENTRYPOINT ["java", "-jar", "app.jar"]
-

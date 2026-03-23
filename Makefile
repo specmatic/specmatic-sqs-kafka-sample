@@ -1,4 +1,4 @@
-.PHONY: help start stop build run test clean send-test logs
+.PHONY: help start stop build run test contract-test clean send-test send-retry consume logs status all
 
 help: ## Show this help message
 	@echo "Available commands:"
@@ -18,21 +18,27 @@ build: ## Build the application
 	@echo "✅ Build complete"
 
 run: ## Run the application
-	@echo "Starting SQS to Kafka Bridge..."
+	@echo "Starting Kafka to SQS Bridge..."
 	@./gradlew run
 
 test: ## Run tests
 	@./gradlew test
 
+contract-test: ## Run the contract test suite
+	@./run-contract-tests.sh
+
 clean: ## Clean build artifacts
 	@./gradlew clean
 	@echo "✅ Clean complete"
 
-send-test: ## Send test messages to SQS
+send-test: ## Send test messages to Kafka
 	@./send-test-message.sh
 
-send-orders: ## Send test order messages matching AsyncAPI spec
-	@./send-order-messages.sh
+send-retry: ## Send retry and DLQ scenario messages
+	@./test-retry-dlq.sh
+
+consume: ## Read transformed messages from the SQS queue
+	@./consume-sqs-messages.sh
 
 logs: ## View Docker service logs
 	@docker compose logs -f
@@ -42,4 +48,3 @@ status: ## Check status of all services
 
 all: start build ## Start infrastructure and build application
 	@echo "✅ Everything is ready! Run 'make run' to start the application."
-

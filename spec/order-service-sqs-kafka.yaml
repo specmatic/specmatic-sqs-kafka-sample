@@ -1,25 +1,25 @@
 asyncapi: 3.0.0
 info:
-  title: Order Service SNS-SQS API
+  title: Order Service Kafka-SQS API
   version: 1.0.0
   description: |
-    When a message is published on a sqs queue, the reply message is expected on a given kafka topic
+    When a message is published on a kafka topic, the reply message is expected on a given SQS queue
 
 servers:
-  sqsServer:
-    host: 'http://localhost:4566/000000000000'
-    protocol: sqs
-    description: AWS SQS server for receiving messages
   kafkaServer:
     host: 'localhost:9092'
     protocol: kafka
-    description: Kafka broker to which the reply message will be sent
+    description: Kafka broker from which the order message will be received
+  sqsServer:
+    host: 'http://localhost:4566/000000000000'
+    protocol: sqs
+    description: AWS SQS server to which the reply message will be sent
 
 channels:
   placeOrder:
-    address: place-order-queue
+    address: place-order-topic
     servers:
-      - $ref: '#/servers/sqsServer'
+      - $ref: '#/servers/kafkaServer'
     messages:
       placeOrderMessage:
         $ref: '#/components/messages/PlaceOrderMessage'
@@ -27,12 +27,12 @@ channels:
         $ref: '#/components/messages/PriorityPlaceOrderMessage'
       bulkPlaceOrderMessage:
         $ref: '#/components/messages/BulkPlaceOrderMessage'
-    description: SQS queue where the place order message will be received
+    description: Kafka topic where the place order message will be received
 
   wipOrder:
-    address: place-order-topic
+    address: place-order-queue
     servers:
-      - $ref: '#/servers/kafkaServer'
+      - $ref: '#/servers/sqsServer'
     messages:
       wipOrderMessage:
         $ref: '#/components/messages/WipOrderMessage'
@@ -40,12 +40,28 @@ channels:
         $ref: '#/components/messages/DeliveredOrderMessage'
       completedOrderMessage:
         $ref: '#/components/messages/CompletedOrderMessage'
-    description: Kafka topic where the WIP orders will be sent
+    description: SQS queue where the WIP orders will be sent
 
+  retryTopic:
+    address: place-order-retry-topic
+    servers:
+      - $ref: '#/servers/kafkaServer'
+    messages:
+      retryMessage:
+        $ref: '#/components/messages/RetryMessage'
+    description: Kafka topic where failed messages are sent for retry processing
+
+  dlqTopic:
+    address: place-order-dlq-topic
+    servers:
+      - $ref: '#/servers/kafkaServer'
+    messages:
+      placeOrderDlqMessage:
+        $ref: '#/components/messages/PlaceOrderDlqMessage'
 
 operations:
   sendOrder:
-    description: Receive an order placement event on the SQS queue and reply with the WIP order message on the kafka topic
+    description: Receive an order placement event on the Kafka topic and reply with the WIP order message on the SQS queue
     action: receive
     channel:
       $ref: '#/channels/placeOrder'
@@ -61,6 +77,24 @@ operations:
         - $ref: '#/channels/wipOrder/messages/deliveredOrderMessage'
         - $ref: '#/channels/wipOrder/messages/completedOrderMessage'
 
+    x-specmatic-retry:
+      channel:
+        $ref: '#/channels/retryTopic'
+      messages:
+        - $ref: '#/channels/retryTopic/messages/retryMessage'
+      maxAttempts: 3
+      strategy:
+        type: "exponential"
+        initialDelaySeconds: 1
+        multiplier: 2
+
+    x-specmatic-dlq:
+      channel:
+        $ref: '#/channels/dlqTopic'
+      messages:
+        - $ref: '#/channels/dlqTopic/messages/placeOrderDlqMessage'
+      waitTimeInSeconds: 30
+
 components:
   messages:
     PlaceOrderMessage:
@@ -68,9 +102,16 @@ components:
       title: Order Created Event
       summary: Event triggered when a new order is created
       contentType: application/json
+      correlationId:
+        location: "$message.header#/CorrelationId"
       headers:
         type: object
         properties:
+          CorrelationId:
+            type: string
+            description: Correlates the order across Kafka, SQS, retry, and DLQ flows
+            examples:
+              - corr-standard-90001
           MessageGroupId:
             type: string
             description: FIFO message group ID
@@ -81,6 +122,8 @@ components:
             description: Message subject
             examples:
               - Order Placed
+        required:
+          - CorrelationId
       payload:
         type: object
         properties:
@@ -145,9 +188,16 @@ components:
       title: Priority Order Created Event
       summary: Event triggered when a priority order is created
       contentType: application/json
+      correlationId:
+        location: "$message.header#/CorrelationId"
       headers:
         type: object
         properties:
+          CorrelationId:
+            type: string
+            description: Correlates the order across Kafka, SQS, retry, and DLQ flows
+            examples:
+              - corr-priority-90002
           MessageGroupId:
             type: string
             description: FIFO message group ID
@@ -166,6 +216,8 @@ components:
               - URGENT
             examples:
               - HIGH
+        required:
+          - CorrelationId
       payload:
         type: object
         properties:
@@ -246,9 +298,16 @@ components:
       title: Bulk Order Created Event
       summary: Event triggered when multiple orders are placed in bulk
       contentType: application/json
+      correlationId:
+        location: "$message.header#/CorrelationId"
       headers:
         type: object
         properties:
+          CorrelationId:
+            type: string
+            description: Correlates the order across Kafka, SQS, retry, and DLQ flows
+            examples:
+              - corr-bulk-90003
           MessageGroupId:
             type: string
             description: FIFO message group ID
@@ -264,6 +323,8 @@ components:
             description: Batch identifier for bulk orders
             examples:
               - BATCH-001
+        required:
+          - CorrelationId
       payload:
         type: object
         properties:
@@ -346,8 +407,18 @@ components:
     WipOrderMessage:
       name: WipOrderMessage
       title: Work In Progress Order Event
-      summary: Transformed order message with WIP status sent to Kafka
+      summary: Transformed order message with WIP status sent to SQS
       contentType: application/json
+      headers:
+        type: object
+        properties:
+          CorrelationId:
+            type: string
+            description: Correlates the order across Kafka, SQS, retry, and DLQ flows
+            examples:
+              - corr-standard-90001
+        required:
+          - CorrelationId
       payload:
         type: object
         properties:
@@ -378,12 +449,23 @@ components:
           - orderId
           - itemsCount
           - status
+          - processingStartedAt
 
     DeliveredOrderMessage:
       name: DeliveredOrderMessage
       title: Delivered Order Event
-      summary: Order message with DELIVERED status sent to Kafka
+      summary: Order message with DELIVERED status sent to SQS
       contentType: application/json
+      headers:
+        type: object
+        properties:
+          CorrelationId:
+            type: string
+            description: Correlates the order across Kafka, SQS, retry, and DLQ flows
+            examples:
+              - corr-priority-90002
+        required:
+          - CorrelationId
       payload:
         type: object
         properties:
@@ -424,8 +506,18 @@ components:
     CompletedOrderMessage:
       name: CompletedOrderMessage
       title: Completed Order Event
-      summary: Order message with COMPLETED status sent to Kafka
+      summary: Order message with COMPLETED status sent to SQS
       contentType: application/json
+      headers:
+        type: object
+        properties:
+          CorrelationId:
+            type: string
+            description: Correlates the order across Kafka, SQS, retry, and DLQ flows
+            examples:
+              - corr-bulk-90003
+        required:
+          - CorrelationId
       payload:
         type: object
         properties:
@@ -456,7 +548,112 @@ components:
             examples:
               - true
         required:
-          - orderId
+          - batchId
           - itemsCount
           - status
           - completedAt
+          - customerConfirmation
+
+    RetryMessage:
+      name: RetryMessage
+      title: Retry Message Event
+      summary: Message sent to retry topic when processing fails
+      contentType: application/json
+      headers:
+        type: object
+        properties:
+          CorrelationId:
+            type: string
+            description: Correlates the order across Kafka, SQS, retry, and DLQ flows
+            examples:
+              - corr-retry-90001
+        required:
+          - CorrelationId
+      payload:
+        type: object
+        properties:
+          originalMessage:
+            type: string
+            description: The original message body that failed processing
+            examples:
+              - '{"orderType":"STANDARD","orderId":"ORD-RETRY-90001",...}'
+          messageKey:
+            type: string
+            description: The message key for partitioning
+            examples:
+              - ORD-RETRY-90001
+          retryCount:
+            type: integer
+            description: Current retry attempt number
+            examples:
+              - 1
+          firstAttemptTimestamp:
+            type: string
+            format: date-time
+            description: Timestamp of the first processing attempt
+            examples:
+              - '2026-01-19T10:00:00Z'
+          lastAttemptTimestamp:
+            type: string
+            format: date-time
+            description: Timestamp of the last processing attempt
+            examples:
+              - '2026-01-19T10:00:05Z'
+          errorMessage:
+            type: string
+            description: Error message from the failed attempt
+            examples:
+              - 'Simulated transformation failure for order: ORD-RETRY-90001'
+          errorStackTrace:
+            type: string
+            description: Stack trace of the error
+            examples:
+              - 'io.specmatic.async.transformer.MessageTransformationException: ...'
+        required:
+          - originalMessage
+          - messageKey
+          - retryCount
+          - firstAttemptTimestamp
+          - lastAttemptTimestamp
+
+    PlaceOrderDlqMessage:
+      name: PlaceOrderDlqMessage
+      title: Dead Letter Queue Event
+      summary: Message sent to the DLQ topic after retries are exhausted
+      contentType: application/json
+      headers:
+        type: object
+        properties:
+          CorrelationId:
+            type: string
+            description: Correlates the order across Kafka, SQS, retry, and DLQ flows
+            examples:
+              - corr-dlq-90001
+        required:
+          - CorrelationId
+      payload:
+        type: object
+        properties:
+          originalMessage:
+            type: string
+          messageKey:
+            type: string
+          totalRetries:
+            type: number
+          firstAttemptTimestamp:
+            type: string
+            format: date-time
+          failedTimestamp:
+            type: string
+            format: date-time
+          finalErrorMessage:
+            type: string
+          finalErrorStackTrace:
+            type: string
+        required:
+          - originalMessage
+          - messageKey
+          - totalRetries
+          - firstAttemptTimestamp
+          - failedTimestamp
+          - finalErrorMessage

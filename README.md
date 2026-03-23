@@ -1,182 +1,104 @@
-# SQS to Kafka Bridge
+# Kafka to SQS Bridge
 
-A Kotlin application that consumes order messages from AWS SQS and publishes transformed messages to Apache Kafka.
+This project consumes order events from Kafka, transforms them by order type, writes the transformed payloads to SQS, and routes transformation failures through Kafka retry and DLQ topics.
 
-## Overview
+## Flow
 
-This service bridges SQS and Kafka by:
-- Polling messages from an SQS queue (long polling)
-- Transforming order messages based on type (Standard → WIP, Priority → DELIVERED, Bulk → COMPLETED)
-- Publishing to Kafka topic
-- Deleting successfully processed messages from SQS
+![Kafka to SQS Architecture](assets/SpecmaticSQS.png)
 
-### Architecture
+Success path:
 
-![SQS to Kafka Architecture](assets/SpecmaticSQS.png)
+```text
+Kafka place-order-topic -> transform -> SQS place-order-queue
+```
 
-**Message Flow:**
-1. Standard Order → WIP status (with itemsCount, processingStartedAt)
-2. Priority Order → DELIVERED status (with itemsCount, deliveredAt, deliveryLocation)
-3. Bulk Order → COMPLETED status (with total itemsCount, completedAt, customerConfirmation)
-4. Invalid messages → Logged and NOT forwarded
+Failure path:
+
+```text
+Kafka place-order-topic -> transform fails -> Kafka place-order-retry-topic
+  -> retry consumer -> transform succeeds -> SQS place-order-queue
+  -> retry consumer -> max retries reached -> Kafka place-order-dlq-topic
+```
+
+Transformations:
+
+- `STANDARD` -> `WIP`
+- `PRIORITY` -> `DELIVERED`
+- `BULK` -> `COMPLETED`
 
 ## Prerequisites
 
 - Docker and Docker Compose
 - Java 17+
-- Gradle (wrapper included)
-- AWS CLI (optional, for manual testing)
- 
-## Contract Testing with Specmatic Programmatically using TestContainers
+- AWS CLI and `jq` for manual queue inspection
 
-### 1. Run the Contract Test
+## Run ContractTest
+
+The contract test starts LocalStack and Kafka, launches the Kotlin bridge and retry consumer, then runs Specmatic against the AsyncAPI contract.
 
 ```bash
-./gradlew test
+./gradlew test --tests ContractTest
 ```
 
-This approach uses JUnit tests with TestContainers to programmatically start infrastructure, run the application, and execute Specmatic tests.
+Reports are written to `build/reports/specmatic/`.
 
-### 2. View Test Reports
-
-After running tests, reports are saved in:
-```
-build/reports/specmatic/
-├── html/index.html        # HTML report
-└── ctrf/ctrf-report.json  # CTRF JSON report
-```
-
-## Contract Testing with Specmatic using Script
-
-### Run the Tests
-
-## Simply execute the provided script:
+If you prefer the Docker-based wrapper that uses the single profile-based Compose file:
 
 ```bash
 ./run-contract-tests.sh
 ```
 
-## Manual Cleanup (if needed)
-
-If the script is interrupted and containers are still running:
+This wrapper is equivalent to:
 
 ```bash
-docker-compose -f docker-compose-test.yml --profile test down -v
+docker compose --profile test up --build --abort-on-container-exit --exit-code-from contract-test contract-test
 ```
 
-### CI/CD Integration
+If your Specmatic license file is not at `../license.txt`, set `SPECMATIC_LICENSE_FILE` before running the Docker-based contract tests.
 
-The script returns appropriate exit codes:
-- `0` - All tests passed
-- `1` - Tests failed or error occurred
+## Run Locally
 
-Example CI/CD usage:
-
-Add this in your `.github/workflows/test.yml`
-```yaml
-- name: Run Contract Tests
-  run: ./run-contract-tests.sh
-```
-
-### View Test Reports
-
-After running tests, reports are saved in:
-```
-build/reports/specmatic/
-├── html/index.html        # HTML report
-└── ctrf/ctrf-report.json  # CTRF JSON report
-```
-
-## Contract Testing with Specmatic Manually
-
-### 1. Start Infrastructure
+Start infrastructure:
 
 ```bash
 ./start-infrastructure.sh
 ```
 
-### 2. Run the application
+This starts the default Compose services from [docker-compose.yml](/Users/yogeshanandanikam/project/sample-projects/specmatic-sqs-kafka-sample/docker-compose.yml): `localstack`, `kafka`, `kafka-init`, and `kafka-ui`.
+
+Run the application:
 
 ```bash
 ./gradlew run
 ```
 
-### 3. Run contract tests using Specmatic
-
-```bash
-docker run --rm --network host -v "$PWD/specmatic.yaml:/usr/src/app/specmatic.yaml" -v "$PWD/spec:/usr/src/app/spec" -v "$PWD/build/reports/specmatic:/usr/src/app/build/reports/specmatic" specmatic/specmatic-async test
-```
-
-## Running the Application
-
-### 1. Start Infrastructure
-
-```bash
-./start-infrastructure.sh
-```
-
-This starts LocalStack (SQS), Kafka, Zookeeper, and Kafka UI.
-
-### 2. Run the application
-
-```bash
-./gradlew run
-```
-
-You should see:
-```
-============================================================
-SQS to Kafka Bridge Application
-============================================================
-Starting SQS to Kafka bridge...
-```
-
-## Testing the Application Manually
-
-### Send Test Messages
-
-Use the provided script to send all order types:
+Send sample Kafka messages:
 
 ```bash
 ./send-test-message.sh
 ```
 
-This sends:
-- Standard order → transforms to WIP
-- Priority order → transforms to DELIVERED
-- Bulk order → transforms to COMPLETED
-- Invalid message → rejected (not forwarded)
-
-### View Results in Kafka UI
-
-1. Open http://localhost:8080
-2. Navigate to **Topics** → **place-order-topic** → **Messages**
-3. You'll see the transformed messages
-
-**Expected Kafka messages:**
-
-Standard Order (WIP)
-```json
-{"orderId": "ORD-90001", "itemsCount": 2, "status": "WIP", "processingStartedAt": "..."}
-```
-Priority Order (DELIVERED)
-```json
-{"orderId": "ORD-PRIORITY-90002", "itemsCount": 2, "status": "DELIVERED", "deliveredAt": "...", "deliveryLocation": "..."}
-```
-Bulk Order (COMPLETED)
-```json
-{"batchId": "BATCH-90003", "itemsCount": 3, "status": "COMPLETED", "completedAt": "...", "customerConfirmation": true}
-```
-
-**Application logs** will show:
-```
-Detected STANDARD order message
-Processing STANDARD order: ORD-90001 with 2 items
-Message sent to Kafka - Topic: place-order-topic, Partition: 0, Offset: 0
-```
-
-### Stop Everything
+Read transformed messages from SQS:
 
 ```bash
-docker-compose down
+./consume-sqs-messages.sh
+```
+
+Send retry and DLQ scenarios:
+
+```bash
+./test-retry-dlq.sh
+```
+
+Inspect Kafka retry and DLQ topics:
+
+```bash
+docker compose exec kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic place-order-retry-topic --from-beginning
+docker compose exec kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic place-order-dlq-topic --from-beginning
+```
+
+Stop the local stack:
+
+```bash
+docker compose down
 ```

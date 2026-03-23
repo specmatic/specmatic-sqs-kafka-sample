@@ -3,7 +3,7 @@ package io.specmatic.async.model
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
 
-// Input Message Types (from SQS)
+// Input message types consumed from Kafka
 
 data class OrderItem(
     val productId: String,
@@ -64,7 +64,7 @@ data class BulkOrderMessage(
     val orderDate: String
 ) : OrderMessage
 
-// Output Message Types (to Kafka)
+// Output message types sent to SQS
 
 data class WipOrderMessage(
     val orderId: String,
@@ -89,9 +89,24 @@ data class CompletedOrderMessage(
     val customerConfirmation: Boolean
 )
 
-// Enum for message types
-enum class OrderMessageType {
-    STANDARD,
-    PRIORITY,
-    BULK
-}
+// Retry and DLQ Models
+
+data class RetryableMessage(
+    val originalMessage: String,
+    val messageKey: String,
+    val retryCount: Int = 0,
+    val firstAttemptTimestamp: String,
+    val lastAttemptTimestamp: String,
+    val errorMessage: String?,
+    val errorStackTrace: String?
+)
+
+data class DlqMessage(
+    val originalMessage: String,
+    val messageKey: String,
+    val totalRetries: Int,
+    val firstAttemptTimestamp: String,
+    val failedTimestamp: String,
+    val finalErrorMessage: String,
+    val finalErrorStackTrace: String?
+)

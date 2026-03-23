@@ -6,17 +6,17 @@ systemUnderTest:
       $ref: "#/components/runOptions/sqsKafkaServiceTest"
 components:
   sources:
-    specmaticOrderContracts:
-      git:
-        url: https://github.com/specmatic/specmatic-order-contracts.git
+    localSpecs:
+      filesystem:
+        directory: spec
   services:
     sqsKafkaService:
       definitions:
         - definition:
             source:
-              $ref: "#/components/sources/specmaticOrderContracts"
+              $ref: "#/components/sources/localSpecs"
             specs:
-              - io/specmatic/examples/store/asyncapi/3_0_0/sqs_kafka/order-service-sqs-kafka.yaml
+              - order-service-sqs-kafka.yaml
   runOptions:
     sqsKafkaServiceTest:
       asyncapi:
@@ -30,5 +30,3 @@ components:
               aws.secret.access.key: test
           - host: localhost:9092
             protocol: kafka
-
-

@@ -1,7 +1,7 @@
 {
-  "name": "Standard_Order_SQS_Kafka",
+  "name": "Standard_Order_Kafka_SQS",
   "receive": {
-    "topic": "place-order-queue",
+    "topic": "place-order-topic",
     "payload": {
       "orderType": "STANDARD",
       "orderId": "ORD-90001",
@@ -22,12 +22,16 @@
       "orderDate": "2025-12-09T14:20:00Z"
     },
     "headers": {
+      "CorrelationId": "corr-standard-90001",
       "MessageGroupId": "order-group-9",
       "Subject": "Order Placed"
     }
   },
   "send": {
-    "topic": "place-order-topic",
+    "topic": "place-order-queue",
+    "headers": {
+      "CorrelationId": "corr-standard-90001"
+    },
     "payload": {
       "orderId": "ORD-90001",
       "itemsCount": "$match(exact: 2)",
