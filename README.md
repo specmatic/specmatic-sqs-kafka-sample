@@ -42,11 +42,19 @@ The contract test starts LocalStack and Kafka, launches the Kotlin bridge and re
 
 Reports are written to `build/reports/specmatic/`.
 
-If you prefer the Docker-based wrapper:
+If you prefer the Docker-based wrapper that uses the single profile-based Compose file:
 
 ```bash
 ./run-contract-tests.sh
 ```
+
+This wrapper is equivalent to:
+
+```bash
+docker compose --profile test up --build --abort-on-container-exit --exit-code-from contract-test contract-test
+```
+
+If your Specmatic license file is not at `../license.txt`, set `SPECMATIC_LICENSE_FILE` before running the Docker-based contract tests.
 
 ## Run Locally
 
@@ -55,6 +63,8 @@ Start infrastructure:
 ```bash
 ./start-infrastructure.sh
 ```
+
+This starts the default Compose services from [docker-compose.yml](/Users/yogeshanandanikam/project/sample-projects/specmatic-sqs-kafka-sample/docker-compose.yml): `localstack`, `kafka`, `kafka-init`, and `kafka-ui`.
 
 Run the application:
 
@@ -83,8 +93,8 @@ Send retry and DLQ scenarios:
 Inspect Kafka retry and DLQ topics:
 
 ```bash
-docker exec -it kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic place-order-retry-topic --from-beginning
-docker exec -it kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic place-order-dlq-topic --from-beginning
+docker compose exec kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic place-order-retry-topic --from-beginning
+docker compose exec kafka kafka-console-consumer --bootstrap-server localhost:9092 --topic place-order-dlq-topic --from-beginning
 ```
 
 Stop the local stack:

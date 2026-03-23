@@ -4,6 +4,7 @@ import io.specmatic.async.transformer.MessageTransformer
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.slf4j.LoggerFactory
+import java.util.concurrent.CountDownLatch
 import kotlin.system.exitProcess
 
 data class AppConfig(
@@ -13,7 +14,8 @@ data class AppConfig(
     val dlqTopic: String,
     val maxRetries: Int,
     val sqsEndpoint: String,
-    val kafkaBootstrapServers: String
+    val kafkaBootstrapServers: String,
+    val enableTestFailureScenarios: Boolean
 ) {
     companion object {
         fun load(): AppConfig {
@@ -38,7 +40,10 @@ data class AppConfig(
                     ?: "http://localhost:4566",
                 kafkaBootstrapServers = System.getProperty("KAFKA_BOOTSTRAP_SERVERS")
                     ?: System.getenv("KAFKA_BOOTSTRAP_SERVERS")
-                    ?: "localhost:9092"
+                    ?: "localhost:9092",
+                enableTestFailureScenarios = System.getProperty("ENABLE_TEST_FAILURE_SCENARIOS")?.toBooleanStrictOrNull()
+                    ?: System.getenv("ENABLE_TEST_FAILURE_SCENARIOS")?.toBooleanStrictOrNull()
+                    ?: false
             )
         }
     }
@@ -73,6 +78,12 @@ class BridgeApplication(
     private var mainBridgeThread: Thread? = null
     private var retryConsumerThread: Thread? = null
 
+    init {
+        if (config.enableTestFailureScenarios) {
+            configureTestFailureScenarios()
+        }
+    }
+
     fun logConfiguration() {
         logger.info("=".repeat(60))
         logger.info("Kafka to SQS Bridge Application with Retry & DLQ")
@@ -85,7 +96,14 @@ class BridgeApplication(
         logger.info("  DLQ Topic: ${config.dlqTopic}")
         logger.info("  Max Retries: ${config.maxRetries}")
         logger.info("  Kafka Bootstrap Servers: ${config.kafkaBootstrapServers}")
+        logger.info("  Test Failure Scenarios Enabled: ${config.enableTestFailureScenarios}")
         logger.info("=".repeat(60))
+    }
+
+    fun configureTestFailureScenarios() {
+        messageTransformer.addFailingOrderId("ORD-RETRY-90001")
+        messageTransformer.addFailingOrderId("ORD-DLQ-90001")
+        messageTransformer.addDirectDlqOrderId("ORD-RECEIVE-DLQ-90001")
     }
 
     fun runBlocking() {
@@ -139,6 +157,7 @@ class BridgeApplication(
 fun main() {
     val logger = LoggerFactory.getLogger("Main")
     val application = BridgeApplication()
+    val shutdownLatch = CountDownLatch(1)
 
     application.logConfiguration()
 
@@ -146,10 +165,12 @@ fun main() {
         logger.info("Shutdown signal received")
         application.close()
         logger.info("Application shutdown complete")
+        shutdownLatch.countDown()
     })
 
     try {
-        application.runBlocking()
+        application.startAsync()
+        shutdownLatch.await()
     } catch (e: Exception) {
         logger.error("Fatal error in application", e)
         exitProcess(1)

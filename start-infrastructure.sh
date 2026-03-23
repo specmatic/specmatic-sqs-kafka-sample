@@ -15,12 +15,12 @@ echo "✅ Docker is running"
 echo ""
 
 # Start Docker Compose services
-echo "🚀 Starting LocalStack (SQS), Kafka, and Zookeeper..."
-docker compose up -d
+echo "🚀 Starting LocalStack (SQS), Kafka, topic bootstrap, and Kafka UI..."
+docker compose up -d localstack kafka kafka-init kafka-ui
 
 echo ""
-echo "⏳ Waiting for services to be ready (30 seconds)..."
-sleep 30
+echo "⏳ Waiting for services to be ready (20 seconds)..."
+sleep 20
 
 # Check service health
 echo ""
@@ -31,6 +31,13 @@ if curl -s http://localhost:4566/_localstack/health > /dev/null; then
     echo "✅ LocalStack (SQS) is ready"
 else
     echo "⚠️  LocalStack might still be starting up"
+fi
+
+# Check Kafka
+if docker compose exec -T kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list > /dev/null 2>&1; then
+    echo "✅ Kafka is ready"
+else
+    echo "⚠️  Kafka might still be starting up"
 fi
 
 # Check Kafka UI

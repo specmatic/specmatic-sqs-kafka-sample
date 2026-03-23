@@ -25,7 +25,7 @@ test: ## Run tests
 	@./gradlew test
 
 contract-test: ## Run the contract test suite
-	@./gradlew test --tests ContractTest
+	@./run-contract-tests.sh
 
 clean: ## Clean build artifacts
 	@./gradlew clean
