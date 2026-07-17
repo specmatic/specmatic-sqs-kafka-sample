@@ -18,7 +18,7 @@ dependencies {
     implementation("org.slf4j:slf4j-api:2.0.17")
     implementation("ch.qos.logback:logback-classic:1.5.32")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.21.2")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.21.5")
 
     testImplementation(kotlin("test"))
     testImplementation("org.testcontainers:testcontainers:2.0.4")
