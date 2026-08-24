@@ -1,6 +1,6 @@
 # Kafka to SQS Bridge
 
-This project consumes order events from Kafka, transforms them by order type, writes the transformed payloads to SQS, and routes transformation failures through Kafka retry and DLQ topics.
+This project consumes order events from Kafka, transforms them by order type, writes the transformed payloads to SQS, and routes transformation failures through Kafka Retry and DLQ topics.
 
 ## Flow
 
