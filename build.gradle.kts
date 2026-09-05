@@ -11,7 +11,7 @@ repositories {
 }
 
 dependencies {
-    implementation("aws.sdk.kotlin:sqs:1.8.41")
+    implementation("aws.sdk.kotlin:sqs:1.8.47")
     implementation("aws.smithy.kotlin:http-client-engine-crt:1.7.9")
     implementation("org.apache.kafka:kafka-clients:3.9.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
