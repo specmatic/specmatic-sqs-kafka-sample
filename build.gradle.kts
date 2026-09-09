@@ -21,7 +21,7 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.21.2")
 
     testImplementation(kotlin("test"))
-    testImplementation("org.testcontainers:testcontainers:2.0.4")
+    testImplementation("org.testcontainers:testcontainers:2.0.5")
     testImplementation("org.testcontainers:junit-jupiter:1.21.4")
     testImplementation("org.assertj:assertj-core:3.27.7")
 }
