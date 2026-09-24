@@ -15,7 +15,7 @@ dependencies {
     implementation("aws.smithy.kotlin:http-client-engine-crt:1.7.11")
     implementation("org.apache.kafka:kafka-clients:3.9.2")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.11.0")
-    implementation("org.slf4j:slf4j-api:2.0.19")
+    implementation("org.slf4j:slf4j-api:2.0.20")
     implementation("ch.qos.logback:logback-classic:1.6.3")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.22.3")
     implementation("com.fasterxml.jackson.core:jackson-databind:2.22.3")
